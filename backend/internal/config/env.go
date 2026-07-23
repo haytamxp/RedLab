@@ -1,27 +1,17 @@
-APP_NAME=RedLab
-APP_VERSION=0.1.0
-APP_ENV=development
+package config
 
-SERVER_PORT=8080
-SERVER_READ_TIMEOUT=10
-SERVER_WRITE_TIMEOUT=10
+import (
+    "fmt"
+    "github.com/joho/godotenv"
+)
 
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_NAME=redlab
-DB_SSLMODE=disable
+func LoadEnv() error {
+    err := godotenv.Load(".env")
+    if err != nil {
+        fmt.Println("❌ Failed to load .env:", err)
+        return err
+    }
 
-JWT_SECRET=supersecret
-JWT_EXPIRE=24
-
-LDAP_HOST=192.168.56.10
-LDAP_PORT=389
-LDAP_BASE_DN=DC=redlab,DC=local
-LDAP_BIND_DN=CN=Administrator,CN=Users,DC=redlab,DC=local
-LDAP_PASSWORD=Password123!
-LDAP_SSL=false
-
-LOG_LEVEL=debug
-LOG_DEVELOPMENT=true
+    fmt.Println("✅ .env loaded successfully")
+    return nil
+}

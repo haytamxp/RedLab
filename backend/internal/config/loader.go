@@ -1,0 +1,4 @@
+
+
+
+func Load() (*Config, error)
