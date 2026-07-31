@@ -1,0 +1,37 @@
+# RedLab
+
+## Overview
+
+RedLab is a modular Offensive Security Assessment Platform designed for Active Directory environments.
+
+The platform automates assessment scenarios, orchestrates distributed Windows agents, centralizes collected information, and generates professional security assessment reports.
+
+---
+
+## Objectives
+
+- Automate Active Directory security assessments.
+- Centralize assessment results.
+- Provide a modular architecture.
+- Generate reports.
+- Map findings to MITRE ATT&CK.
+
+---
+
+## Technologies
+
+Backend:
+- Go
+
+Frontend:
+- React
+- TypeScript
+
+Database:
+- PostgreSQL
+
+Agent:
+- Go
+
+Target Environment:
+- Windows Active Directory
