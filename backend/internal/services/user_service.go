@@ -13,19 +13,13 @@ type UserService struct {
 	repository *repository.UserRepository
 }
 
-func NewUserService(
-	repository *repository.UserRepository,
-) *UserService {
-
+func NewUserService(repository *repository.UserRepository) *UserService {
 	return &UserService{
 		repository: repository,
 	}
 }
 
-func (s *UserService) CreateUser(
-	ctx context.Context,
-	user *models.User,
-) error {
+func (s *UserService) Create(ctx context.Context, user *models.User) error {
 
 	user.ID = uuid.New()
 
@@ -34,13 +28,7 @@ func (s *UserService) CreateUser(
 	return s.repository.Create(ctx, user)
 }
 
-func (s *UserService) FindByUsername(
-	ctx context.Context,
-	username string,
-) (*models.User, error) {
+func (s *UserService) FindByUsername(ctx context.Context, username string) (*models.User, error) {
 
-	return s.repository.FindByUsername(
-		ctx,
-		username,
-	)
+	return s.repository.FindByUsername(ctx, username)
 }

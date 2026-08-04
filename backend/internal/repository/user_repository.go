@@ -18,13 +18,23 @@ func NewUserRepository(db *pgxpool.Pool) *UserRepository {
 	}
 }
 
-// Create inserts a new user into the database.
 func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 
 	query := `
 	INSERT INTO users
-	(id, username, email, password_hash, first_name, last_name, role, is_active)
-	VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+	(
+		id,
+		username,
+		email,
+		password_hash,
+		first_name,
+		last_name,
+		role,
+		is_active,
+		ldap_user
+	)
+	VALUES
+	($1,$2,$3,$4,$5,$6,$7,$8,$9)
 	`
 
 	_, err := r.db.Exec(
@@ -38,16 +48,13 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 		user.LastName,
 		user.Role,
 		user.IsActive,
+		user.LDAPUser,
 	)
 
 	return err
 }
 
-// FindByUsername returns one user.
-func (r *UserRepository) FindByUsername(
-	ctx context.Context,
-	username string,
-) (*models.User, error) {
+func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*models.User, error) {
 
 	user := &models.User{}
 
@@ -60,7 +67,12 @@ func (r *UserRepository) FindByUsername(
 	first_name,
 	last_name,
 	role,
-	is_active
+	is_active,
+	ldap_user,
+	last_login,
+	manager_id,
+	created_at,
+	updated_at
 	FROM users
 	WHERE username=$1
 	`
@@ -74,6 +86,11 @@ func (r *UserRepository) FindByUsername(
 		&user.LastName,
 		&user.Role,
 		&user.IsActive,
+		&user.LDAPUser,
+		&user.LastLogin,
+		&user.ManagerID,
+		&user.CreatedAt,
+		&user.UpdatedAt,
 	)
 
 	if err != nil {

@@ -11,7 +11,7 @@ import (
 type AuthService struct {
 	users *UserService
 
-	jwtSecret string
+	secret string
 
 	expiration int
 }
@@ -25,7 +25,7 @@ func NewAuthService(
 	return &AuthService{
 		users: users,
 
-		jwtSecret: secret,
+		secret: secret,
 
 		expiration: expiration,
 	}
@@ -45,45 +45,29 @@ func (s *AuthService) Register(
 
 	user.PasswordHash = hash
 
-	return s.users.CreateUser(
-		ctx,
-		user,
-	)
+	return s.users.Create(ctx, user)
 }
 
 func (s *AuthService) Login(
 	ctx context.Context,
-	username,
+	username string,
 	password string,
 ) (string, error) {
 
-	user, err := s.users.FindByUsername(
-		ctx,
-		username,
-	)
+	user, err := s.users.FindByUsername(ctx, username)
 
 	if err != nil {
 		return "", err
 	}
 
-	if !auth.CheckPassword(
-		user.PasswordHash,
-		password,
-	) {
-
+	if !auth.CheckPassword(user.PasswordHash, password) {
 		return "", errors.New("invalid username or password")
 	}
 
-	token, err := auth.GenerateJWT(
+	return auth.GenerateJWT(
 		user.ID.String(),
 		string(user.Role),
-		s.jwtSecret,
+		s.secret,
 		s.expiration,
 	)
-
-	if err != nil {
-		return "", err
-	}
-
-	return token, nil
 }
