@@ -1,10 +1,15 @@
 package router
 
 import (
+	"github.com/gin-gonic/gin"
+
+	"github.com/haytamxp/redlab/backend/internal/auth"
 	"github.com/haytamxp/redlab/backend/internal/handlers"
 )
 
-func (r *Router) registerRoutes() {
+func (r *Router) RegisterRoutes(
+	authHandler *handlers.AuthHandler,
+) {
 
 	r.Engine.GET("/health", handlers.Health)
 
@@ -15,11 +20,23 @@ func (r *Router) registerRoutes() {
 	{
 		v1.GET("/health", handlers.Health)
 
-		auth := v1.Group("/auth")
+		authGroup := v1.Group("/auth")
 
 		{
-			auth.POST("/login", handlers.Login)
-			auth.POST("/register", handlers.Register)
+			authGroup.POST("/register", authHandler.Register)
+			authGroup.POST("/login", authHandler.Login)
+		}
+
+		protected := v1.Group("/")
+
+		protected.Use(auth.JWTMiddleware("my_secret_key"))
+
+		{
+			protected.GET("/profile", func(c *gin.Context) {
+				c.JSON(200, gin.H{
+					"message": "Authenticated",
+				})
+			})
 		}
 	}
 }

@@ -1,22 +1,47 @@
 package database
 
-import "fmt"
+import (
+	"context"
+)
 
-// Migrate runs all database migrations.
-//
-// For now, this function only prints a message.
-// Later we'll integrate golang-migrate to automatically
-// create and update database tables.
-func Migrate() error {
+func Migrate(db *Database) error {
 
-	fmt.Println("Running database migrations...")
+	query := `
+CREATE TABLE IF NOT EXISTS users(
 
-	// TODO:
-	// Integrate golang-migrate
-	// Execute SQL migration files
-	// Track migration versions
+id UUID PRIMARY KEY,
 
-	fmt.Println("✅ Database migrations completed")
+username TEXT UNIQUE NOT NULL,
 
-	return nil
+email TEXT UNIQUE NOT NULL,
+
+password_hash TEXT NOT NULL,
+
+first_name TEXT,
+
+last_name TEXT,
+
+role TEXT,
+
+is_active BOOLEAN,
+
+ldap_user BOOLEAN,
+
+last_login TIMESTAMP,
+
+manager_id UUID,
+
+created_at TIMESTAMP,
+
+updated_at TIMESTAMP
+
+);
+`
+
+	_, err := db.Pool.Exec(
+		context.Background(),
+		query,
+	)
+
+	return err
 }

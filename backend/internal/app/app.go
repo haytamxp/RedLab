@@ -4,8 +4,12 @@ import (
 	"fmt"
 
 	"github.com/haytamxp/redlab/backend/internal/config"
+	"github.com/haytamxp/redlab/backend/internal/database"
+	"github.com/haytamxp/redlab/backend/internal/handlers"
 	"github.com/haytamxp/redlab/backend/internal/logger"
+	"github.com/haytamxp/redlab/backend/internal/repository"
 	"github.com/haytamxp/redlab/backend/internal/router"
+	"github.com/haytamxp/redlab/backend/internal/services"
 )
 
 type App struct {
@@ -27,21 +31,40 @@ func New() (*App, error) {
 
 	logger.Init(log)
 
-	r := router.New()
-
-	app := &App{
-		Config: cfg,
-		Router: r,
+	db, err := database.Connect(cfg)
+	if err != nil {
+		return nil, err
 	}
 
-	return app, nil
+	userRepository := repository.NewUserRepository(db)
+	userService := services.NewUserService(userRepository)
+
+	authService := services.NewAuthService(
+		userService,
+		cfg.JWT.Secret,
+		cfg.JWT.Expiration,
+	)
+
+	authHandler := handlers.NewAuthHandler(authService)
+
+	r := router.New()
+	r.RegisterRoutes(authHandler)
+
+	return &App{
+		Config: cfg,
+		Router: r,
+	}, nil
 }
 
 func (a *App) Start() error {
 
 	logger.Log.Info("Starting RedLab Backend")
 
-	address := fmt.Sprintf("%s:%s", a.Config.Server.Host, a.Config.Server.Port)
+	address := fmt.Sprintf(
+		"%s:%s",
+		a.Config.Server.Host,
+		a.Config.Server.Port,
+	)
 
 	return Run(address, a.Router.Engine)
 }
