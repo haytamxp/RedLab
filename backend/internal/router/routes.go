@@ -14,5 +14,12 @@ func (r *Router) registerRoutes() {
 
 	{
 		v1.GET("/health", handlers.Health)
+
+		auth := v1.Group("/auth")
+
+		{
+			auth.POST("/login", handlers.Login)
+			auth.POST("/register", handlers.Register)
+		}
 	}
 }
