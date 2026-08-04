@@ -99,3 +99,9 @@ func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*
 
 	return user, nil
 }
+func (r *UserRepository) FindAll(
+	ctx context.Context,
+) ([]models.User, error) {
+
+	return []models.User{}, nil
+}

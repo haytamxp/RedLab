@@ -39,4 +39,10 @@ func (r *Router) RegisterRoutes(
 			})
 		}
 	}
+	func (r *Router) RegisterAgentRoutes(agent *handlers.AgentHandler) {
+
+	api := r.Engine.Group("/api/v1")
+	api.GET("/users", userHandler.GetAll)
+	api.POST("/agents", agent.Create)
+}
 }

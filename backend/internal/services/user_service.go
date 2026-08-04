@@ -32,3 +32,9 @@ func (s *UserService) FindByUsername(ctx context.Context, username string) (*mod
 
 	return s.repository.FindByUsername(ctx, username)
 }
+func (s *UserService) GetAll(
+	ctx context.Context,
+) ([]models.User, error) {
+
+	return s.repository.FindAll(ctx)
+}
