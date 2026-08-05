@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/haytamxp/redlab/backend/internal/permissions"
 )
 
 func JWTMiddleware(secret string) gin.HandlerFunc {
@@ -39,6 +41,26 @@ func JWTMiddleware(secret string) gin.HandlerFunc {
 
 		c.Set("userID", claims.UserID)
 		c.Set("role", claims.Role)
+
+		c.Next()
+	}
+}
+func RequirePermission(permission string) gin.HandlerFunc {
+
+	return func(c *gin.Context) {
+
+		role := c.GetString("role")
+
+		if !permissions.HasPermission(role, permission) {
+
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "permission denied",
+			})
+
+			c.Abort()
+
+			return
+		}
 
 		c.Next()
 	}
