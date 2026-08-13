@@ -18,4 +18,12 @@ var Techniques = map[string]Technique{
 		ID:   "T1069.002",
 		Name: "Permission Groups Discovery: Domain Groups",
 	},
+	"T1018": {
+		ID:   "T1018",
+		Name: "Remote System Discovery",
+	},
+	"T1558.003": {
+		ID:   "T1558.003",
+		Name: "Steal or Forge Kerberos Tickets: Kerberoasting",
+	},
 }

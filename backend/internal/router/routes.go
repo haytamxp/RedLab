@@ -9,6 +9,7 @@ import (
 	"github.com/haytamxp/redlab/backend/internal/database"
 	"github.com/haytamxp/redlab/backend/internal/handlers"
 	"github.com/haytamxp/redlab/backend/internal/permissions"
+	"github.com/haytamxp/redlab/backend/internal/reporting"
 	"github.com/haytamxp/redlab/backend/internal/repository"
 	"github.com/haytamxp/redlab/backend/internal/services"
 )
@@ -90,6 +91,16 @@ func (r *Router) RegisterRoutes(
 			assessmentService,
 		)
 
+	reportingService :=
+		reporting.NewService(
+			database.DB,
+		)
+
+	reportingHandler :=
+		reporting.NewHandler(
+			reportingService,
+		)
+
 	// -------------------------
 	// Agent-authenticated
 	// -------------------------
@@ -143,10 +154,6 @@ func (r *Router) RegisterRoutes(
 		},
 	)
 
-	// -------------------------
-	// Agent administration
-	// -------------------------
-
 	agents := protected.Group(
 		"/agents",
 	)
@@ -172,10 +179,6 @@ func (r *Router) RegisterRoutes(
 		agentHandler.Get,
 	)
 
-	// -------------------------
-	// Task administration
-	// -------------------------
-
 	tasks := protected.Group(
 		"/tasks",
 	)
@@ -190,10 +193,6 @@ func (r *Router) RegisterRoutes(
 		"",
 		taskHandler.Create,
 	)
-
-	// -------------------------
-	// Assessment administration
-	// -------------------------
 
 	assessments := protected.Group(
 		"/assessments",
@@ -216,6 +215,11 @@ func (r *Router) RegisterRoutes(
 	)
 
 	assessments.GET(
+		"/:id/report",
+		reportingHandler.Get,
+	)
+
+	assessments.GET(
 		"/:id",
 		assessmentHandler.Get,
 	)
@@ -224,10 +228,6 @@ func (r *Router) RegisterRoutes(
 		"/:id/status",
 		assessmentHandler.UpdateStatus,
 	)
-
-	// -------------------------
-	// Findings
-	// -------------------------
 
 	findings := protected.Group(
 		"/findings",
