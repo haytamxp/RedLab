@@ -18,7 +18,6 @@ type App struct {
 }
 
 func New() (*App, error) {
-
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
@@ -36,10 +35,14 @@ func New() (*App, error) {
 		return nil, err
 	}
 
+	if err := database.Migrate(db); err != nil {
+		database.Close()
+		return nil, err
+	}
+
 	userRepository := repository.NewUserRepository(db)
 	userService := services.NewUserService(userRepository)
 
-	// LDAP service used to authenticate users against Active Directory.
 	ldapService := services.NewLDAPService(cfg.LDAP)
 
 	authService := services.NewAuthService(
@@ -51,8 +54,17 @@ func New() (*App, error) {
 
 	authHandler := handlers.NewAuthHandler(authService)
 
+	agentRepository := repository.NewAgentRepository(db)
+	agentService := services.NewAgentService(agentRepository)
+	agentHandler := handlers.NewAgentHandler(agentService)
+
 	r := router.New()
-	r.RegisterRoutes(authHandler)
+
+	r.RegisterRoutes(
+		authHandler,
+		agentHandler,
+		cfg.JWT.Secret,
+	)
 
 	return &App{
 		Config: cfg,
@@ -61,7 +73,6 @@ func New() (*App, error) {
 }
 
 func (a *App) Start() error {
-
 	logger.Log.Info("Starting RedLab Backend")
 
 	address := fmt.Sprintf(

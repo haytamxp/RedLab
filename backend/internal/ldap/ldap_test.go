@@ -2,6 +2,7 @@ package ldap
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/joho/godotenv"
@@ -12,7 +13,11 @@ import (
 func loadLDAPTestConfig(t *testing.T) config.LDAPConfig {
 	t.Helper()
 
-	_ = godotenv.Load(".env")
+	envPath := filepath.Join("..", "..", ".env")
+
+	if err := godotenv.Overload(envPath); err != nil {
+		t.Fatalf("failed to load backend .env: %v", err)
+	}
 
 	return config.LDAPConfig{
 		Host:     os.Getenv("LDAP_HOST"),
@@ -60,12 +65,11 @@ func TestLDAPFindUser(t *testing.T) {
 	defer client.Close()
 
 	user, err := client.FindUser(testUser)
-
 	if err != nil {
 		t.Fatalf("LDAP user search failed: %v", err)
 	}
 
-	t.Logf("User found")
+	t.Log("User found")
 	t.Logf("DN: %s", user.DN)
 	t.Logf("SAMAccountName: %s", user.SAMAccountName)
 	t.Logf("UPN: %s", user.UserPrincipalName)
@@ -88,7 +92,6 @@ func TestLDAPAuthenticate(t *testing.T) {
 	defer client.Close()
 
 	user, err := client.Authenticate(testUser, testPassword)
-
 	if err != nil {
 		t.Fatalf("LDAP authentication failed: %v", err)
 	}
