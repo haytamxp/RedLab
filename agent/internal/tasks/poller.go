@@ -2,17 +2,19 @@ package tasks
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"time"
 
 	"github.com/haytamxp/redlab/agent/internal/api"
+	"github.com/haytamxp/redlab/agent/internal/config"
+	"github.com/haytamxp/redlab/agent/internal/modules"
 )
 
 type Poller struct {
 	client       *api.Client
 	agentID      string
 	pollInterval time.Duration
+	executor     *Executor
 }
 
 func NewPoller(
@@ -20,10 +22,28 @@ func NewPoller(
 	agentID string,
 	pollInterval time.Duration,
 ) *Poller {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Printf(
+			"[tasks] executor configuration warning: %v",
+			err,
+		)
+
+		return &Poller{
+			client:       client,
+			agentID:      agentID,
+			pollInterval: pollInterval,
+			executor:     NewExecutor(nil),
+		}
+	}
+
+	registry := modules.NewRegistry(cfg.LDAP)
+
 	return &Poller{
 		client:       client,
 		agentID:      agentID,
 		pollInterval: pollInterval,
+		executor:     NewExecutor(registry),
 	}
 }
 
@@ -69,31 +89,25 @@ func (p *Poller) poll(ctx context.Context) {
 		task.Priority,
 	)
 
-	result := json.RawMessage(`{
-		"message": "Task received but executor is not implemented yet"
-	}`)
+	result := p.executor.Execute(ctx, task)
 
-	err = p.client.SubmitTaskResult(
+	if err := p.client.SubmitTaskResult(
 		ctx,
 		p.agentID,
 		task.ID,
-		api.TaskResultRequest{
-			Status: "FAILED",
-			Result: result,
-			Error:  "task executor is not implemented in this agent build",
-		},
-	)
-
-	if err != nil {
+		result,
+	); err != nil {
 		log.Printf(
-			"[tasks] submit result failed: %v",
+			"[tasks] submit result failed task=%s: %v",
+			task.ID,
 			err,
 		)
 		return
 	}
 
 	log.Printf(
-		"[tasks] task=%s marked FAILED",
+		"[tasks] task=%s completed with status=%s",
 		task.ID,
+		result.Status,
 	)
 }

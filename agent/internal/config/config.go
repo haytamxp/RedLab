@@ -8,17 +8,25 @@ import (
 	"time"
 )
 
+type LDAPConfig struct {
+	URL      string
+	Username string
+	Password string
+	BaseDN   string
+}
+
 type Config struct {
 	ServerURL    string
 	AgentID      string
 	AgentToken   string
 	Heartbeat    time.Duration
 	PollInterval time.Duration
+	LDAP         LDAPConfig
 }
 
 func Load() (Config, error) {
 	cfg := Config{
-		ServerURL:    strings.TrimRight(
+		ServerURL: strings.TrimRight(
 			os.Getenv("REDLAB_SERVER_URL"),
 			"/",
 		),
@@ -36,6 +44,21 @@ func Load() (Config, error) {
 			"REDLAB_POLL_SECONDS",
 			10,
 		),
+		LDAP: LDAPConfig{
+			URL: strings.TrimRight(
+				strings.TrimSpace(
+					os.Getenv("REDLAB_LDAP_URL"),
+				),
+				"/",
+			),
+			Username: strings.TrimSpace(
+				os.Getenv("REDLAB_LDAP_USERNAME"),
+			),
+			Password: os.Getenv("REDLAB_LDAP_PASSWORD"),
+			BaseDN: strings.TrimSpace(
+				os.Getenv("REDLAB_LDAP_BASE_DN"),
+			),
+		},
 	}
 
 	if cfg.ServerURL == "" {
