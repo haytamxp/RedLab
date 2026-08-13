@@ -32,10 +32,12 @@ func (r *Router) RegisterRoutes(
 	)
 
 	authGroup := v1.Group("/auth")
+
 	authGroup.POST(
 		"/register",
 		authHandler.Register,
 	)
+
 	authGroup.POST(
 		"/login",
 		authHandler.Login,
@@ -72,6 +74,26 @@ func (r *Router) RegisterRoutes(
 		findingService,
 	)
 
+	assessmentRepository :=
+		repository.NewAssessmentRepository(
+			database.DB,
+		)
+
+	assessmentService :=
+		services.NewAssessmentService(
+			assessmentRepository,
+			agentService,
+		)
+
+	assessmentHandler :=
+		handlers.NewAssessmentHandler(
+			assessmentService,
+		)
+
+	// -------------------------
+	// Agent-authenticated
+	// -------------------------
+
 	v1.POST(
 		"/agents/:id/tasks/next",
 		taskHandler.Next,
@@ -92,7 +114,12 @@ func (r *Router) RegisterRoutes(
 		agentHandler.Heartbeat,
 	)
 
+	// -------------------------
+	// Human-authenticated
+	// -------------------------
+
 	protected := v1.Group("/")
+
 	protected.Use(
 		auth.JWTMiddleware(jwtSecret),
 	)
@@ -115,6 +142,10 @@ func (r *Router) RegisterRoutes(
 			)
 		},
 	)
+
+	// -------------------------
+	// Agent administration
+	// -------------------------
 
 	agents := protected.Group(
 		"/agents",
@@ -141,6 +172,10 @@ func (r *Router) RegisterRoutes(
 		agentHandler.Get,
 	)
 
+	// -------------------------
+	// Task administration
+	// -------------------------
+
 	tasks := protected.Group(
 		"/tasks",
 	)
@@ -155,6 +190,44 @@ func (r *Router) RegisterRoutes(
 		"",
 		taskHandler.Create,
 	)
+
+	// -------------------------
+	// Assessment administration
+	// -------------------------
+
+	assessments := protected.Group(
+		"/assessments",
+	)
+
+	assessments.Use(
+		auth.RequirePermission(
+			permissions.ManageAgents,
+		),
+	)
+
+	assessments.POST(
+		"",
+		assessmentHandler.Create,
+	)
+
+	assessments.GET(
+		"",
+		assessmentHandler.List,
+	)
+
+	assessments.GET(
+		"/:id",
+		assessmentHandler.Get,
+	)
+
+	assessments.PATCH(
+		"/:id/status",
+		assessmentHandler.UpdateStatus,
+	)
+
+	// -------------------------
+	// Findings
+	// -------------------------
 
 	findings := protected.Group(
 		"/findings",

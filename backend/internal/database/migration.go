@@ -66,6 +66,51 @@ func Migrate(db *pgxpool.Pool) error {
 		)
 	}
 
+	assessmentsQuery := `
+	CREATE TABLE IF NOT EXISTS assessments (
+		id UUID PRIMARY KEY,
+		name TEXT NOT NULL,
+		description TEXT,
+		agent_id UUID NOT NULL,
+		status TEXT NOT NULL DEFAULT 'PENDING',
+		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+		CONSTRAINT fk_assessments_agent
+			FOREIGN KEY (agent_id)
+			REFERENCES agents(id)
+			ON DELETE CASCADE
+	);
+	`
+
+	if _, err := db.Exec(ctx, assessmentsQuery); err != nil {
+		return fmt.Errorf(
+			"create assessments table: %w",
+			err,
+		)
+	}
+
+	CREATE_ASSESSMENT_INDEXES := `
+	CREATE INDEX IF NOT EXISTS idx_assessments_agent
+	ON assessments(agent_id);
+
+	CREATE INDEX IF NOT EXISTS idx_assessments_status
+	ON assessments(status);
+
+	CREATE INDEX IF NOT EXISTS idx_assessments_created_at
+	ON assessments(created_at);
+	`
+
+	if _, err := db.Exec(
+		ctx,
+		CREATE_ASSESSMENT_INDEXES,
+	); err != nil {
+		return fmt.Errorf(
+			"create assessment indexes: %w",
+			err,
+		)
+	}
+
 	tasksQuery := `
 	CREATE TABLE IF NOT EXISTS tasks (
 		id UUID PRIMARY KEY,
@@ -80,6 +125,7 @@ func Migrate(db *pgxpool.Pool) error {
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 		claimed_at TIMESTAMP NULL,
 		completed_at TIMESTAMP NULL,
+
 		CONSTRAINT fk_tasks_agent
 			FOREIGN KEY (agent_id)
 			REFERENCES agents(id)
@@ -100,7 +146,10 @@ func Migrate(db *pgxpool.Pool) error {
 	`
 
 	if _, err := db.Exec(ctx, taskIndexes); err != nil {
-		return fmt.Errorf("create task indexes: %w", err)
+		return fmt.Errorf(
+			"create task indexes: %w",
+			err,
+		)
 	}
 
 	findingsQuery := `
@@ -132,7 +181,10 @@ func Migrate(db *pgxpool.Pool) error {
 	`
 
 	if _, err := db.Exec(ctx, findingsQuery); err != nil {
-		return fmt.Errorf("create findings table: %w", err)
+		return fmt.Errorf(
+			"create findings table: %w",
+			err,
+		)
 	}
 
 	findingIndexes := `
@@ -142,6 +194,9 @@ func Migrate(db *pgxpool.Pool) error {
 	CREATE INDEX IF NOT EXISTS idx_findings_task
 	ON findings(task_id);
 
+	CREATE INDEX IF NOT EXISTS idx_findings_assessment
+	ON findings(assessment_id);
+
 	CREATE INDEX IF NOT EXISTS idx_findings_severity
 	ON findings(severity);
 
@@ -150,7 +205,10 @@ func Migrate(db *pgxpool.Pool) error {
 	`
 
 	if _, err := db.Exec(ctx, findingIndexes); err != nil {
-		return fmt.Errorf("create finding indexes: %w", err)
+		return fmt.Errorf(
+			"create finding indexes: %w",
+			err,
+		)
 	}
 
 	return nil

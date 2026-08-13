@@ -1,18 +1,45 @@
 package validator
 
 import (
-	"fmt"
+	"errors"
+	"strings"
 
-	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 
 	"github.com/haytamxp/redlab/backend/internal/dto"
 )
 
-var assessmentValidator = validator.New()
+var (
+	ErrAssessmentNameRequired = errors.New(
+		"assessment name is required",
+	)
+	ErrAssessmentNameTooLong = errors.New(
+		"assessment name exceeds 120 characters",
+	)
+	ErrInvalidAssessmentAgent = errors.New(
+		"invalid assessment agent ID",
+	)
+)
 
-func ValidateAssessmentRequest(req dto.AssessmentRequest) error {
-	if err := assessmentValidator.Struct(req); err != nil {
-		return fmt.Errorf("assessment validation failed: %w", err)
+func ValidateCreateAssessment(
+	request dto.CreateAssessmentRequest,
+) error {
+	name := strings.TrimSpace(
+		request.Name,
+	)
+
+	if name == "" {
+		return ErrAssessmentNameRequired
+	}
+
+	if len(name) > 120 {
+		return ErrAssessmentNameTooLong
+	}
+
+	if _, err := uuid.Parse(
+		request.AgentID,
+	); err != nil {
+		return ErrInvalidAssessmentAgent
 	}
 
 	return nil

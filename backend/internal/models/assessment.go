@@ -14,8 +14,8 @@ const (
 type Assessment struct {
 	Base
 
-	Name        string           `db:"name" json:"name"`
-	Description string           `db:"description" json:"description"`
+	Name        string `db:"name" json:"name"`
+	Description string `db:"description" json:"description"`
 
 	AgentID uuid.UUID `db:"agent_id" json:"agent_id"`
 

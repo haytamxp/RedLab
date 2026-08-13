@@ -42,6 +42,10 @@ type taskResultEnvelope struct {
 	Data           json.RawMessage `json:"data"`
 }
 
+type taskAssessmentPayload struct {
+	AssessmentID string `json:"assessment_id"`
+}
+
 func (s *FindingService) CreateFromTaskResult(
 	ctx context.Context,
 	task *models.Task,
@@ -63,6 +67,22 @@ func (s *FindingService) CreateFromTaskResult(
 		return nil, ErrInvalidFindingResult
 	}
 
+	var assessmentID *uuid.UUID
+
+	var payload taskAssessmentPayload
+
+	if err := json.Unmarshal(
+		task.Payload,
+		&payload,
+	); err == nil && payload.AssessmentID != "" {
+		id, err := uuid.Parse(
+			payload.AssessmentID,
+		)
+		if err == nil {
+			assessmentID = &id
+		}
+	}
+
 	now := time.Now()
 
 	taskID := task.ID
@@ -73,6 +93,7 @@ func (s *FindingService) CreateFromTaskResult(
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
+		AssessmentID:  assessmentID,
 		TaskID:        &taskID,
 		AgentID:       task.AgentID,
 		Title:         buildFindingTitle(envelope),
@@ -106,7 +127,10 @@ func (s *FindingService) Get(
 	ctx context.Context,
 	id uuid.UUID,
 ) (*models.Finding, error) {
-	return s.repository.FindByID(ctx, id)
+	return s.repository.FindByID(
+		ctx,
+		id,
+	)
 }
 
 func buildFindingTitle(
@@ -121,7 +145,9 @@ func buildFindingTitle(
 
 	return fmt.Sprintf(
 		"RedLab discovery: %s",
-		strings.ToLower(result.TaskType),
+		strings.ToLower(
+			result.TaskType,
+		),
 	)
 }
 
