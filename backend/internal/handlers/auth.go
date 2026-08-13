@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,22 +15,21 @@ type AuthHandler struct {
 	auth *services.AuthService
 }
 
-func NewAuthHandler(auth *services.AuthService) *AuthHandler {
+func NewAuthHandler(
+	auth *services.AuthService,
+) *AuthHandler {
 	return &AuthHandler{
 		auth: auth,
 	}
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
-
 	var req dto.RegisterRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
-
 		return
 	}
 
@@ -39,20 +39,18 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
 		Role:      models.RoleStudent,
+		LDAPUser:  false,
+		IsActive:  true,
 	}
 
-	err := h.auth.Register(
+	if err := h.auth.Register(
 		c.Request.Context(),
 		user,
 		req.Password,
-	)
-
-	if err != nil {
-
+	); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
-
 		return
 	}
 
@@ -62,15 +60,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
-
 	var req dto.LoginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
-
 		return
 	}
 
@@ -80,12 +75,25 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		req.Password,
 	)
 
-	if err != nil {
-
+	if errors.Is(err, services.ErrInvalidCredentials) ||
+		errors.Is(err, services.ErrUserNotFound) {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": err.Error(),
+			"error": "invalid username or password",
 		})
+		return
+	}
 
+	if errors.Is(err, services.ErrUserInactive) {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "user account is inactive",
+		})
+		return
+	}
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "authentication failed",
+		})
 		return
 	}
 

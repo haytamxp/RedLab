@@ -3,9 +3,16 @@ package services
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/haytamxp/redlab/backend/internal/auth"
 	"github.com/haytamxp/redlab/backend/internal/models"
+)
+
+var (
+	ErrInvalidCredentials = errors.New("invalid username or password")
+	ErrUserInactive       = errors.New("user account is inactive")
+	ErrUserNotFound       = errors.New("user not registered in RedLab")
 )
 
 type AuthService struct {
@@ -22,7 +29,6 @@ func NewAuthService(
 	secret string,
 	expiration int,
 ) *AuthService {
-
 	return &AuthService{
 		users:      users,
 		ldap:       ldap,
@@ -36,13 +42,14 @@ func (s *AuthService) Register(
 	user *models.User,
 	password string,
 ) error {
-
 	hash, err := auth.HashPassword(password)
 	if err != nil {
 		return err
 	}
 
 	user.PasswordHash = hash
+	user.LDAPUser = false
+	user.IsActive = true
 
 	return s.users.Create(ctx, user)
 }
@@ -52,28 +59,66 @@ func (s *AuthService) Login(
 	username string,
 	password string,
 ) (string, error) {
+	username = strings.TrimSpace(username)
 
 	if username == "" || password == "" {
-		return "", errors.New("username and password are required")
+		return "", ErrInvalidCredentials
 	}
 
-	// Authenticate the credentials against Active Directory.
-	ldapUser, err := s.ldap.Authenticate(ctx, username, password)
+	user, err := s.users.FindByUsername(ctx, username)
 	if err != nil {
-		return "", errors.New("invalid username or password")
-	}
-
-	// Find the corresponding RedLab application user.
-	user, err := s.users.FindByUsername(ctx, ldapUser.SAMAccountName)
-	if err != nil {
-		return "", errors.New("user is not registered in RedLab")
+		return "", ErrUserNotFound
 	}
 
 	if !user.IsActive {
-		return "", errors.New("user account is inactive")
+		return "", ErrUserInactive
 	}
 
-	// Generate the RedLab JWT using the application's role.
+	// Local RedLab account.
+	if !user.LDAPUser {
+		if !auth.CheckPassword(user.PasswordHash, password) {
+			return "", ErrInvalidCredentials
+		}
+
+		if err := s.users.UpdateLastLogin(
+			ctx,
+			user.ID,
+		); err != nil {
+			return "", err
+		}
+
+		return auth.GenerateJWT(
+			user.ID.String(),
+			string(user.Role),
+			s.secret,
+			s.expiration,
+		)
+	}
+
+	// Active Directory account.
+	ldapUser, err := s.ldap.Authenticate(
+		ctx,
+		username,
+		password,
+	)
+	if err != nil {
+		return "", ErrInvalidCredentials
+	}
+
+	if !strings.EqualFold(
+		ldapUser.SAMAccountName,
+		user.Username,
+	) {
+		return "", ErrInvalidCredentials
+	}
+
+	if err := s.users.UpdateLastLogin(
+		ctx,
+		user.ID,
+	); err != nil {
+		return "", err
+	}
+
 	return auth.GenerateJWT(
 		user.ID.String(),
 		string(user.Role),

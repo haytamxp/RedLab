@@ -18,13 +18,13 @@ func Migrate(db *pgxpool.Pool) error {
 		password_hash TEXT NOT NULL,
 		first_name TEXT,
 		last_name TEXT,
-		role TEXT,
-		is_active BOOLEAN DEFAULT TRUE,
-		ldap_user BOOLEAN DEFAULT FALSE,
-		last_login TIMESTAMP,
-		manager_id UUID,
-		created_at TIMESTAMP DEFAULT NOW(),
-		updated_at TIMESTAMP DEFAULT NOW()
+		role TEXT NOT NULL DEFAULT 'student',
+		is_active BOOLEAN NOT NULL DEFAULT TRUE,
+		ldap_user BOOLEAN NOT NULL DEFAULT FALSE,
+		last_login TIMESTAMP NULL,
+		manager_id UUID NULL,
+		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 	);
 	`
 
@@ -42,6 +42,8 @@ func Migrate(db *pgxpool.Pool) error {
 		version TEXT,
 		status TEXT NOT NULL,
 		last_seen TIMESTAMP NULL,
+		token_hash TEXT UNIQUE,
+		token_issued_at TIMESTAMP NULL,
 		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 	);
@@ -49,6 +51,16 @@ func Migrate(db *pgxpool.Pool) error {
 
 	if _, err := db.Exec(ctx, agentsQuery); err != nil {
 		return fmt.Errorf("create agents table: %w", err)
+	}
+
+	alterAgentsQuery := `
+	ALTER TABLE agents
+		ADD COLUMN IF NOT EXISTS token_hash TEXT UNIQUE,
+		ADD COLUMN IF NOT EXISTS token_issued_at TIMESTAMP NULL;
+	`
+
+	if _, err := db.Exec(ctx, alterAgentsQuery); err != nil {
+		return fmt.Errorf("update agents authentication columns: %w", err)
 	}
 
 	return nil

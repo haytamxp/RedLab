@@ -2,11 +2,17 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/haytamxp/redlab/backend/internal/models"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrUserNotFound = errors.New("user not found")
 
 type UserRepository struct {
 	db *pgxpool.Pool
@@ -18,11 +24,12 @@ func NewUserRepository(db *pgxpool.Pool) *UserRepository {
 	}
 }
 
-func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
-
+func (r *UserRepository) Create(
+	ctx context.Context,
+	user *models.User,
+) error {
 	query := `
-	INSERT INTO users
-	(
+	INSERT INTO users (
 		id,
 		username,
 		email,
@@ -31,10 +38,15 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 		last_name,
 		role,
 		is_active,
-		ldap_user
+		ldap_user,
+		last_login,
+		manager_id,
+		created_at,
+		updated_at
 	)
-	VALUES
-	($1,$2,$3,$4,$5,$6,$7,$8,$9)
+	VALUES (
+		$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13
+	)
 	`
 
 	_, err := r.db.Exec(
@@ -49,35 +61,45 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 		user.Role,
 		user.IsActive,
 		user.LDAPUser,
+		user.LastLogin,
+		user.ManagerID,
+		user.CreatedAt,
+		user.UpdatedAt,
 	)
 
 	return err
 }
 
-func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*models.User, error) {
-
+func (r *UserRepository) FindByUsername(
+	ctx context.Context,
+	username string,
+) (*models.User, error) {
 	user := &models.User{}
 
 	query := `
 	SELECT
-	id,
-	username,
-	email,
-	password_hash,
-	first_name,
-	last_name,
-	role,
-	is_active,
-	ldap_user,
-	last_login,
-	manager_id,
-	created_at,
-	updated_at
+		id,
+		username,
+		email,
+		password_hash,
+		first_name,
+		last_name,
+		role,
+		is_active,
+		ldap_user,
+		last_login,
+		manager_id,
+		created_at,
+		updated_at
 	FROM users
-	WHERE username=$1
+	WHERE username = $1
 	`
 
-	err := r.db.QueryRow(ctx, query, username).Scan(
+	err := r.db.QueryRow(
+		ctx,
+		query,
+		username,
+	).Scan(
 		&user.ID,
 		&user.Username,
 		&user.Email,
@@ -93,15 +115,99 @@ func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*
 		&user.UpdatedAt,
 	)
 
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrUserNotFound
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
 	return user, nil
 }
+
+func (r *UserRepository) FindByID(
+	ctx context.Context,
+	id uuid.UUID,
+) (*models.User, error) {
+	user := &models.User{}
+
+	query := `
+	SELECT
+		id,
+		username,
+		email,
+		password_hash,
+		first_name,
+		last_name,
+		role,
+		is_active,
+		ldap_user,
+		last_login,
+		manager_id,
+		created_at,
+		updated_at
+	FROM users
+	WHERE id = $1
+	`
+
+	err := r.db.QueryRow(
+		ctx,
+		query,
+		id,
+	).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.PasswordHash,
+		&user.FirstName,
+		&user.LastName,
+		&user.Role,
+		&user.IsActive,
+		&user.LDAPUser,
+		&user.LastLogin,
+		&user.ManagerID,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrUserNotFound
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (r *UserRepository) UpdateLastLogin(
+	ctx context.Context,
+	id uuid.UUID,
+) error {
+	now := time.Now()
+
+	query := `
+	UPDATE users
+	SET
+		last_login = $1,
+		updated_at = $1
+	WHERE id = $2
+	`
+
+	_, err := r.db.Exec(
+		ctx,
+		query,
+		now,
+		id,
+	)
+
+	return err
+}
+
 func (r *UserRepository) FindAll(
 	ctx context.Context,
 ) ([]models.User, error) {
-
 	return []models.User{}, nil
 }

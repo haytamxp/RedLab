@@ -13,28 +13,47 @@ type UserService struct {
 	repository *repository.UserRepository
 }
 
-func NewUserService(repository *repository.UserRepository) *UserService {
+func NewUserService(
+	repository *repository.UserRepository,
+) *UserService {
 	return &UserService{
 		repository: repository,
 	}
 }
 
-func (s *UserService) Create(ctx context.Context, user *models.User) error {
-
+func (s *UserService) Create(
+	ctx context.Context,
+	user *models.User,
+) error {
 	user.ID = uuid.New()
-
 	user.IsActive = true
 
 	return s.repository.Create(ctx, user)
 }
 
-func (s *UserService) FindByUsername(ctx context.Context, username string) (*models.User, error) {
-
+func (s *UserService) FindByUsername(
+	ctx context.Context,
+	username string,
+) (*models.User, error) {
 	return s.repository.FindByUsername(ctx, username)
 }
+
+func (s *UserService) FindByID(
+	ctx context.Context,
+	id uuid.UUID,
+) (*models.User, error) {
+	return s.repository.FindByID(ctx, id)
+}
+
+func (s *UserService) UpdateLastLogin(
+	ctx context.Context,
+	id uuid.UUID,
+) error {
+	return s.repository.UpdateLastLogin(ctx, id)
+}
+
 func (s *UserService) GetAll(
 	ctx context.Context,
 ) ([]models.User, error) {
-
 	return s.repository.FindAll(ctx)
 }
