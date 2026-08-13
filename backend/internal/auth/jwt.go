@@ -1,14 +1,32 @@
 package auth
 
 import (
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func GenerateJWT(userID, role, secret string, expirationHours int) (string, error) {
+var ErrInvalidJWTSecret = errors.New("invalid JWT secret")
 
-	expiration := time.Now().Add(
+func GenerateJWT(
+	userID,
+	role,
+	secret string,
+	expirationHours int,
+) (string, error) {
+	if strings.TrimSpace(secret) == "" {
+		return "", ErrInvalidJWTSecret
+	}
+
+	if expirationHours <= 0 {
+		return "", errors.New("JWT expiration must be greater than zero")
+	}
+
+	now := time.Now()
+
+	expiration := now.Add(
 		time.Duration(expirationHours) * time.Hour,
 	)
 
@@ -17,7 +35,7 @@ func GenerateJWT(userID, role, secret string, expirationHours int) (string, erro
 		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiration),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			IssuedAt:  jwt.NewNumericDate(now),
 		},
 	}
 
@@ -26,15 +44,31 @@ func GenerateJWT(userID, role, secret string, expirationHours int) (string, erro
 		claims,
 	)
 
-	return token.SignedString([]byte(secret))
+	return token.SignedString(
+		[]byte(secret),
+	)
 }
 
-func ValidateJWT(tokenString, secret string) (*Claims, error) {
+func ValidateJWT(
+	tokenString,
+	secret string,
+) (*Claims, error) {
+	if strings.TrimSpace(secret) == "" {
+		return nil, ErrInvalidJWTSecret
+	}
+
+	if strings.TrimSpace(tokenString) == "" {
+		return nil, jwt.ErrTokenMalformed
+	}
 
 	token, err := jwt.ParseWithClaims(
 		tokenString,
 		&Claims{},
 		func(token *jwt.Token) (interface{}, error) {
+			if token.Method != jwt.SigningMethodHS256 {
+				return nil, jwt.ErrTokenSignatureInvalid
+			}
+
 			return []byte(secret), nil
 		},
 	)

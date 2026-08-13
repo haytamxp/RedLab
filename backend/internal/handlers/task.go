@@ -36,19 +36,28 @@ func (h *TaskHandler) Create(c *gin.Context) {
 	var req dto.CreateTaskRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   err.Error(),
-		})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"success": false,
+				"error":   err.Error(),
+			},
+		)
+
 		return
 	}
 
 	agentID, err := uuid.Parse(req.AgentID)
+
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "invalid agent_id",
-		})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"success": false,
+				"error":   "invalid agent_id",
+			},
+		)
+
 		return
 	}
 
@@ -65,49 +74,70 @@ func (h *TaskHandler) Create(c *gin.Context) {
 			err,
 			repository.ErrAgentNotFound,
 		) {
-			c.JSON(http.StatusNotFound, gin.H{
-				"success": false,
-				"error":   "agent not found",
-			})
+			c.JSON(
+				http.StatusNotFound,
+				gin.H{
+					"success": false,
+					"error":   "agent not found",
+				},
+			)
+
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "failed to create task",
-		})
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"success": false,
+				"error":   "failed to create task",
+			},
+		)
+
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"message": "Task created successfully",
-		"data":    toTaskResponse(task),
-	})
+	c.JSON(
+		http.StatusCreated,
+		gin.H{
+			"success": true,
+			"message": "Task created successfully",
+			"data":    toTaskResponse(task),
+		},
+	)
 }
 
 func (h *TaskHandler) Next(c *gin.Context) {
 	agentID, err := uuid.Parse(
 		c.Param("id"),
 	)
+
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "invalid agent ID",
-		})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"success": false,
+				"error":   "invalid agent ID",
+			},
+		)
+
 		return
 	}
 
 	agent, ok := h.authenticateAgent(c)
+
 	if !ok {
 		return
 	}
 
 	if agent.ID != agentID {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"error":   "agent token does not match requested agent",
-		})
+		c.JSON(
+			http.StatusForbidden,
+			gin.H{
+				"success": false,
+				"error":   "agent token does not match requested agent",
+			},
+		)
+
 		return
 	}
 
@@ -117,67 +147,94 @@ func (h *TaskHandler) Next(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "failed to retrieve next task",
-		})
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"success": false,
+				"error":   "failed to retrieve next task",
+			},
+		)
+
 		return
 	}
 
 	if task == nil {
 		c.Status(http.StatusNoContent)
+
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    toTaskResponse(task),
-	})
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"success": true,
+			"data":    toTaskResponse(task),
+		},
+	)
 }
 
 func (h *TaskHandler) Complete(c *gin.Context) {
 	agentID, err := uuid.Parse(
 		c.Param("id"),
 	)
+
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "invalid agent ID",
-		})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"success": false,
+				"error":   "invalid agent ID",
+			},
+		)
+
 		return
 	}
 
 	taskID, err := uuid.Parse(
 		c.Param("taskId"),
 	)
+
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "invalid task ID",
-		})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"success": false,
+				"error":   "invalid task ID",
+			},
+		)
+
 		return
 	}
 
 	agent, ok := h.authenticateAgent(c)
+
 	if !ok {
 		return
 	}
 
 	if agent.ID != agentID {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"error":   "agent token does not match requested agent",
-		})
+		c.JSON(
+			http.StatusForbidden,
+			gin.H{
+				"success": false,
+				"error":   "agent token does not match requested agent",
+			},
+		)
+
 		return
 	}
 
 	var req dto.TaskResultRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   err.Error(),
-		})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"success": false,
+				"error":   err.Error(),
+			},
+		)
+
 		return
 	}
 
@@ -194,10 +251,14 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 		err,
 		services.ErrInvalidTaskResult,
 	) {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   err.Error(),
-		})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"success": false,
+				"error":   err.Error(),
+			},
+		)
+
 		return
 	}
 
@@ -205,18 +266,26 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 		err,
 		repository.ErrTaskNotFound,
 	) {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "task not found or task is not claimed by this agent",
-		})
+		c.JSON(
+			http.StatusNotFound,
+			gin.H{
+				"success": false,
+				"error":   "task not found or task is not claimed by this agent",
+			},
+		)
+
 		return
 	}
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "failed to complete task",
-		})
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"success": false,
+				"error":   "failed to complete task",
+			},
+		)
+
 		return
 	}
 
@@ -248,31 +317,44 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, response)
+	c.JSON(
+		http.StatusOK,
+		response,
+	)
 }
 
 func (h *TaskHandler) ListForAgent(c *gin.Context) {
 	agentID, err := uuid.Parse(
 		c.Param("id"),
 	)
+
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "invalid agent ID",
-		})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"success": false,
+				"error":   "invalid agent ID",
+			},
+		)
+
 		return
 	}
 
 	agent, ok := h.authenticateAgent(c)
+
 	if !ok {
 		return
 	}
 
 	if agent.ID != agentID {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"error":   "agent token does not match requested agent",
-		})
+		c.JSON(
+			http.StatusForbidden,
+			gin.H{
+				"success": false,
+				"error":   "agent token does not match requested agent",
+			},
+		)
+
 		return
 	}
 
@@ -282,10 +364,14 @@ func (h *TaskHandler) ListForAgent(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "failed to retrieve tasks",
-		})
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"success": false,
+				"error":   "failed to retrieve tasks",
+			},
+		)
+
 		return
 	}
 
@@ -302,10 +388,13 @@ func (h *TaskHandler) ListForAgent(c *gin.Context) {
 		)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    response,
-	})
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"success": true,
+			"data":    response,
+		},
+	)
 }
 
 func (h *TaskHandler) authenticateAgent(
@@ -316,10 +405,14 @@ func (h *TaskHandler) authenticateAgent(
 	)
 
 	if token == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"error":   "missing agent token",
-		})
+		c.JSON(
+			http.StatusUnauthorized,
+			gin.H{
+				"success": false,
+				"error":   "missing agent token",
+			},
+		)
+
 		return nil, false
 	}
 
@@ -332,18 +425,26 @@ func (h *TaskHandler) authenticateAgent(
 		err,
 		services.ErrInvalidAgentToken,
 	) {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"error":   "invalid agent token",
-		})
+		c.JSON(
+			http.StatusUnauthorized,
+			gin.H{
+				"success": false,
+				"error":   "invalid agent token",
+			},
+		)
+
 		return nil, false
 	}
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "agent authentication failed",
-		})
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"success": false,
+				"error":   "agent authentication failed",
+			},
+		)
+
 		return nil, false
 	}
 

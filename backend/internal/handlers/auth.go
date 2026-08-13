@@ -27,9 +27,14 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	var req dto.RegisterRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"success": false,
+				"error":   err.Error(),
+			},
+		)
+
 		return
 	}
 
@@ -48,24 +53,37 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		user,
 		req.Password,
 	); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"success": false,
+				"error":   err.Error(),
+			},
+		)
+
 		return
 	}
 
-	c.JSON(http.StatusCreated, dto.RegisterResponse{
-		Message: "User registered successfully",
-	})
+	c.JSON(
+		http.StatusCreated,
+		dto.RegisterResponse{
+			Message: "User registered successfully",
+		},
+	)
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req dto.LoginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"success": false,
+				"error":   err.Error(),
+			},
+		)
+
 		return
 	}
 
@@ -75,29 +93,57 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		req.Password,
 	)
 
-	if errors.Is(err, services.ErrInvalidCredentials) ||
-		errors.Is(err, services.ErrUserNotFound) {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "invalid username or password",
-		})
+	if errors.Is(
+		err,
+		services.ErrInvalidCredentials,
+	) ||
+		errors.Is(
+			err,
+			services.ErrUserNotFound,
+		) {
+
+		c.JSON(
+			http.StatusUnauthorized,
+			gin.H{
+				"success": false,
+				"error":   "invalid username or password",
+			},
+		)
+
 		return
 	}
 
-	if errors.Is(err, services.ErrUserInactive) {
-		c.JSON(http.StatusForbidden, gin.H{
-			"error": "user account is inactive",
-		})
+	if errors.Is(
+		err,
+		services.ErrUserInactive,
+	) {
+		c.JSON(
+			http.StatusForbidden,
+			gin.H{
+				"success": false,
+				"error":   "user account is inactive",
+			},
+		)
+
 		return
 	}
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "authentication failed",
-		})
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"success": false,
+				"error":   "authentication failed",
+			},
+		)
+
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.LoginResponse{
-		Token: token,
-	})
+	c.JSON(
+		http.StatusOK,
+		dto.LoginResponse{
+			Token: token,
+		},
+	)
 }
