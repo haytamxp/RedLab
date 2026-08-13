@@ -60,7 +60,10 @@ func Migrate(db *pgxpool.Pool) error {
 	`
 
 	if _, err := db.Exec(ctx, alterAgentsQuery); err != nil {
-		return fmt.Errorf("update agents authentication columns: %w", err)
+		return fmt.Errorf(
+			"update agents authentication columns: %w",
+			err,
+		)
 	}
 
 	tasksQuery := `
@@ -98,6 +101,56 @@ func Migrate(db *pgxpool.Pool) error {
 
 	if _, err := db.Exec(ctx, taskIndexes); err != nil {
 		return fmt.Errorf("create task indexes: %w", err)
+	}
+
+	findingsQuery := `
+	CREATE TABLE IF NOT EXISTS findings (
+		id UUID PRIMARY KEY,
+		assessment_id UUID NULL,
+		task_id UUID NULL,
+		agent_id UUID NOT NULL,
+		title TEXT NOT NULL,
+		description TEXT NOT NULL,
+		severity TEXT NOT NULL DEFAULT 'INFO',
+		technique_id TEXT,
+		technique_name TEXT,
+		evidence JSONB NOT NULL DEFAULT '{}'::jsonb,
+		recommendation TEXT,
+		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+		CONSTRAINT fk_findings_task
+			FOREIGN KEY (task_id)
+			REFERENCES tasks(id)
+			ON DELETE SET NULL,
+
+		CONSTRAINT fk_findings_agent
+			FOREIGN KEY (agent_id)
+			REFERENCES agents(id)
+			ON DELETE CASCADE
+	);
+	`
+
+	if _, err := db.Exec(ctx, findingsQuery); err != nil {
+		return fmt.Errorf("create findings table: %w", err)
+	}
+
+	findingIndexes := `
+	CREATE INDEX IF NOT EXISTS idx_findings_agent
+	ON findings(agent_id);
+
+	CREATE INDEX IF NOT EXISTS idx_findings_task
+	ON findings(task_id);
+
+	CREATE INDEX IF NOT EXISTS idx_findings_severity
+	ON findings(severity);
+
+	CREATE INDEX IF NOT EXISTS idx_findings_technique
+	ON findings(technique_id);
+	`
+
+	if _, err := db.Exec(ctx, findingIndexes); err != nil {
+		return fmt.Errorf("create finding indexes: %w", err)
 	}
 
 	return nil

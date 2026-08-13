@@ -35,9 +35,7 @@ func NewRegistry(
 		modules: make(map[string]Module),
 	}
 
-	ldapClient := NewLDAPClient(
-		ldapConfig,
-	)
+	ldapClient := NewLDAPClient(ldapConfig)
 
 	registry.Register(
 		"DOMAIN_INFO",
@@ -52,6 +50,11 @@ func NewRegistry(
 	registry.Register(
 		"AD_GROUP_ENUMERATION",
 		NewGroupsModule(ldapClient),
+	)
+
+	registry.Register(
+		"AD_COMPUTER_ENUMERATION",
+		NewComputersModule(ldapClient),
 	)
 
 	return registry

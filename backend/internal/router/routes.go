@@ -18,29 +18,49 @@ func (r *Router) RegisterRoutes(
 	agentHandler *handlers.AgentHandler,
 	jwtSecret string,
 ) {
-	r.Engine.GET("/health", handlers.Health)
+	r.Engine.GET(
+		"/health",
+		handlers.Health,
+	)
 
 	api := r.Engine.Group("/api")
 	v1 := api.Group("/v1")
 
-	// -------------------------
-	// Public routes
-	// -------------------------
-
-	v1.GET("/health", handlers.Health)
+	v1.GET(
+		"/health",
+		handlers.Health,
+	)
 
 	authGroup := v1.Group("/auth")
-	authGroup.POST("/register", authHandler.Register)
-	authGroup.POST("/login", authHandler.Login)
+	authGroup.POST(
+		"/register",
+		authHandler.Register,
+	)
+	authGroup.POST(
+		"/login",
+		authHandler.Login,
+	)
 
-	// -------------------------
-	// Task infrastructure
-	// -------------------------
+	agentRepository := repository.NewAgentRepository(
+		database.DB,
+	)
 
-	agentRepository := repository.NewAgentRepository(database.DB)
-	agentService := services.NewAgentService(agentRepository)
+	agentService := services.NewAgentService(
+		agentRepository,
+	)
 
-	taskRepository := repository.NewTaskRepository(database.DB)
+	taskRepository := repository.NewTaskRepository(
+		database.DB,
+	)
+
+	findingRepository := repository.NewFindingRepository(
+		database.DB,
+	)
+
+	findingService := services.NewFindingService(
+		findingRepository,
+	)
+
 	taskService := services.NewTaskService(
 		taskRepository,
 		agentService,
@@ -49,9 +69,9 @@ func (r *Router) RegisterRoutes(
 	taskHandler := handlers.NewTaskHandler(
 		taskService,
 		agentService,
+		findingService,
 	)
 
-	// Agent-authenticated endpoints.
 	v1.POST(
 		"/agents/:id/tasks/next",
 		taskHandler.Next,
@@ -67,48 +87,96 @@ func (r *Router) RegisterRoutes(
 		taskHandler.Complete,
 	)
 
-	// -------------------------
-	// Existing agent heartbeat
-	// -------------------------
-
 	v1.POST(
 		"/agents/:id/heartbeat",
 		agentHandler.Heartbeat,
 	)
 
-	// -------------------------
-	// Human authenticated routes
-	// -------------------------
-
 	protected := v1.Group("/")
-	protected.Use(auth.JWTMiddleware(jwtSecret))
+	protected.Use(
+		auth.JWTMiddleware(jwtSecret),
+	)
 
-	protected.GET("/profile", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": "Authenticated",
-			"user_id": c.GetString("userID"),
-			"role":    c.GetString("role"),
-		})
-	})
+	protected.GET(
+		"/profile",
+		func(c *gin.Context) {
+			c.JSON(
+				http.StatusOK,
+				gin.H{
+					"success": true,
+					"message": "Authenticated",
+					"user_id": c.GetString(
+						"userID",
+					),
+					"role": c.GetString(
+						"role",
+					),
+				},
+			)
+		},
+	)
 
-	// -------------------------
-	// Agent administration
-	// -------------------------
+	agents := protected.Group(
+		"/agents",
+	)
 
-	agents := protected.Group("/agents")
-	agents.Use(auth.RequirePermission(permissions.ManageAgents))
+	agents.Use(
+		auth.RequirePermission(
+			permissions.ManageAgents,
+		),
+	)
 
-	agents.POST("", agentHandler.Create)
-	agents.GET("", agentHandler.List)
-	agents.GET("/:id", agentHandler.Get)
+	agents.POST(
+		"",
+		agentHandler.Create,
+	)
 
-	// -------------------------
-	// Task administration
-	// -------------------------
+	agents.GET(
+		"",
+		agentHandler.List,
+	)
 
-	tasks := protected.Group("/tasks")
-	tasks.Use(auth.RequirePermission(permissions.ManageAgents))
+	agents.GET(
+		"/:id",
+		agentHandler.Get,
+	)
 
-	tasks.POST("", taskHandler.Create)
+	tasks := protected.Group(
+		"/tasks",
+	)
+
+	tasks.Use(
+		auth.RequirePermission(
+			permissions.ManageAgents,
+		),
+	)
+
+	tasks.POST(
+		"",
+		taskHandler.Create,
+	)
+
+	findings := protected.Group(
+		"/findings",
+	)
+
+	findings.Use(
+		auth.RequirePermission(
+			permissions.ManageAgents,
+		),
+	)
+
+	findings.GET(
+		"",
+		handlers.NewFindingHandler(
+			findingService,
+		).List,
+	)
+
+	findings.GET(
+		"/:id",
+		handlers.NewFindingHandler(
+			findingService,
+		).Get,
+	)
 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -14,17 +15,20 @@ import (
 )
 
 type TaskHandler struct {
-	service      *services.TaskService
-	agentService *services.AgentService
+	service        *services.TaskService
+	agentService   *services.AgentService
+	findingService *services.FindingService
 }
 
 func NewTaskHandler(
 	service *services.TaskService,
 	agentService *services.AgentService,
+	findingService *services.FindingService,
 ) *TaskHandler {
 	return &TaskHandler{
-		service:      service,
-		agentService: agentService,
+		service:        service,
+		agentService:   agentService,
+		findingService: findingService,
 	}
 }
 
@@ -57,7 +61,10 @@ func (h *TaskHandler) Create(c *gin.Context) {
 	)
 
 	if err != nil {
-		if errors.Is(err, repository.ErrAgentNotFound) {
+		if errors.Is(
+			err,
+			repository.ErrAgentNotFound,
+		) {
 			c.JSON(http.StatusNotFound, gin.H{
 				"success": false,
 				"error":   "agent not found",
@@ -80,7 +87,9 @@ func (h *TaskHandler) Create(c *gin.Context) {
 }
 
 func (h *TaskHandler) Next(c *gin.Context) {
-	agentID, err := uuid.Parse(c.Param("id"))
+	agentID, err := uuid.Parse(
+		c.Param("id"),
+	)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -127,7 +136,9 @@ func (h *TaskHandler) Next(c *gin.Context) {
 }
 
 func (h *TaskHandler) Complete(c *gin.Context) {
-	agentID, err := uuid.Parse(c.Param("id"))
+	agentID, err := uuid.Parse(
+		c.Param("id"),
+	)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -136,7 +147,9 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 		return
 	}
 
-	taskID, err := uuid.Parse(c.Param("taskId"))
+	taskID, err := uuid.Parse(
+		c.Param("taskId"),
+	)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -177,7 +190,10 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 		req.Error,
 	)
 
-	if errors.Is(err, services.ErrInvalidTaskResult) {
+	if errors.Is(
+		err,
+		services.ErrInvalidTaskResult,
+	) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error":   err.Error(),
@@ -185,7 +201,10 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 		return
 	}
 
-	if errors.Is(err, repository.ErrTaskNotFound) {
+	if errors.Is(
+		err,
+		repository.ErrTaskNotFound,
+	) {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
 			"error":   "task not found or task is not claimed by this agent",
@@ -201,15 +220,41 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"success": true,
 		"message": "Task result recorded",
 		"data":    toTaskResponse(task),
-	})
+	}
+
+	if strings.EqualFold(
+		req.Status,
+		string(models.TaskCompleted),
+	) {
+		finding, findingErr :=
+			h.findingService.CreateFromTaskResult(
+				c.Request.Context(),
+				task,
+				req.Result,
+			)
+
+		if findingErr == nil {
+			response["finding"] = finding
+		} else if !errors.Is(
+			findingErr,
+			services.ErrInvalidFindingResult,
+		) {
+			response["warning"] =
+				"Task completed, but finding creation failed"
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *TaskHandler) ListForAgent(c *gin.Context) {
-	agentID, err := uuid.Parse(c.Param("id"))
+	agentID, err := uuid.Parse(
+		c.Param("id"),
+	)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -244,7 +289,11 @@ func (h *TaskHandler) ListForAgent(c *gin.Context) {
 		return
 	}
 
-	response := make([]dto.TaskResponse, 0, len(tasks))
+	response := make(
+		[]dto.TaskResponse,
+		0,
+		len(tasks),
+	)
 
 	for i := range tasks {
 		response = append(
@@ -279,7 +328,10 @@ func (h *TaskHandler) authenticateAgent(
 		token,
 	)
 
-	if errors.Is(err, services.ErrInvalidAgentToken) {
+	if errors.Is(
+		err,
+		services.ErrInvalidAgentToken,
+	) {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
 			"error":   "invalid agent token",
@@ -298,7 +350,9 @@ func (h *TaskHandler) authenticateAgent(
 	return agent, true
 }
 
-func toTaskResponse(task *models.Task) dto.TaskResponse {
+func toTaskResponse(
+	task *models.Task,
+) dto.TaskResponse {
 	response := dto.TaskResponse{
 		ID:           task.ID.String(),
 		AgentID:      task.AgentID.String(),
