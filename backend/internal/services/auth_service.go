@@ -10,23 +10,23 @@ import (
 
 type AuthService struct {
 	users *UserService
+	ldap  *LDAPService
 
-	secret string
-
+	secret     string
 	expiration int
 }
 
 func NewAuthService(
 	users *UserService,
+	ldap *LDAPService,
 	secret string,
 	expiration int,
 ) *AuthService {
 
 	return &AuthService{
-		users: users,
-
-		secret: secret,
-
+		users:      users,
+		ldap:       ldap,
+		secret:     secret,
 		expiration: expiration,
 	}
 }
@@ -38,7 +38,6 @@ func (s *AuthService) Register(
 ) error {
 
 	hash, err := auth.HashPassword(password)
-
 	if err != nil {
 		return err
 	}
@@ -54,16 +53,27 @@ func (s *AuthService) Login(
 	password string,
 ) (string, error) {
 
-	user, err := s.users.FindByUsername(ctx, username)
-
-	if err != nil {
-		return "", err
+	if username == "" || password == "" {
+		return "", errors.New("username and password are required")
 	}
 
-	if !auth.CheckPassword(user.PasswordHash, password) {
+	// Authenticate the credentials against Active Directory.
+	ldapUser, err := s.ldap.Authenticate(ctx, username, password)
+	if err != nil {
 		return "", errors.New("invalid username or password")
 	}
 
+	// Find the corresponding RedLab application user.
+	user, err := s.users.FindByUsername(ctx, ldapUser.SAMAccountName)
+	if err != nil {
+		return "", errors.New("user is not registered in RedLab")
+	}
+
+	if !user.IsActive {
+		return "", errors.New("user account is inactive")
+	}
+
+	// Generate the RedLab JWT using the application's role.
 	return auth.GenerateJWT(
 		user.ID.String(),
 		string(user.Role),

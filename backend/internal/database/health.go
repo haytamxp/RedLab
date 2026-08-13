@@ -2,18 +2,21 @@ package database
 
 import (
 	"context"
+	"errors"
 	"time"
-
-	appErrors "github.com/haytamxp/redlab/backend/internal/errors"
 )
 
-func Health() error {
+var ErrDatabaseNotConnected = errors.New("database not connected")
 
+func Health() error {
 	if DB == nil {
-		return appErrors.ErrDatabaseNotConnected
+		return ErrDatabaseNotConnected
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		5*time.Second,
+	)
 	defer cancel()
 
 	return DB.Ping(ctx)

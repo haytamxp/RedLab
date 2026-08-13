@@ -11,18 +11,13 @@ type Router struct {
 }
 
 func New() *Router {
-
 	engine := gin.New()
 
 	engine.Use(middleware.Logger())
 	engine.Use(middleware.Recovery())
 	engine.Use(middleware.CORS())
 
-	router := &Router{
+	return &Router{
 		Engine: engine,
 	}
-
-	router.registerRoutes()
-
-	return router
 }

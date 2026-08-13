@@ -9,14 +9,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// DB is the global connection pool.
-// All repositories will use this pool.
 var DB *pgxpool.Pool
 
-// Connect establishes a connection pool to PostgreSQL.
 func Connect(cfg *config.Config) error {
-
-	// Build the PostgreSQL connection string (DSN).
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		cfg.Database.User,
@@ -27,17 +22,17 @@ func Connect(cfg *config.Config) error {
 		cfg.Database.SSLMode,
 	)
 
-	// Prevent waiting forever if PostgreSQL is unavailable.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		10*time.Second,
+	)
 	defer cancel()
 
-	// Create the connection pool.
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		return err
 	}
 
-	// Verify the connection.
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
 		return err
@@ -45,18 +40,16 @@ func Connect(cfg *config.Config) error {
 
 	DB = pool
 
-	fmt.Println("✅ Connected to PostgreSQL")
+	fmt.Println("Connected to PostgreSQL")
 
 	return nil
 }
 
-// Close gracefully closes the connection pool.
 func Close() {
-
 	if DB != nil {
-
 		DB.Close()
+		DB = nil
 
-		fmt.Println("🛑 PostgreSQL connection closed")
+		fmt.Println("PostgreSQL connection closed")
 	}
 }

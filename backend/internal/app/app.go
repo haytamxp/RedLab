@@ -39,8 +39,12 @@ func New() (*App, error) {
 	userRepository := repository.NewUserRepository(db)
 	userService := services.NewUserService(userRepository)
 
+	// LDAP service used to authenticate users against Active Directory.
+	ldapService := services.NewLDAPService(cfg.LDAP)
+
 	authService := services.NewAuthService(
 		userService,
+		ldapService,
 		cfg.JWT.Secret,
 		cfg.JWT.Expiration,
 	)
