@@ -18,6 +18,7 @@ The platform is designed to centralize and structure an authorized security asse
 The project is not intended to replace specialized offensive-security tools. Instead, RedLab provides a **centralized orchestration and assessment layer** that connects the different components involved in an Active Directory assessment.
 
 The current MVP focuses on demonstrating a complete and reproducible assessment lifecycle:
+```text
 
 Assessment
     |
