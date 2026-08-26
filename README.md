@@ -1,4 +1,4 @@
-````markdown
+
 # RedLab — Modular Active Directory Offensive Security Assessment Platform
 
 > **Project:** RedLab
@@ -19,7 +19,6 @@ The project is not intended to replace specialized offensive-security tools. Ins
 
 The current MVP focuses on demonstrating a complete and reproducible assessment lifecycle:
 
-```text
 Assessment
     |
     v
