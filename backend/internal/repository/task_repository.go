@@ -11,17 +11,22 @@ import (
 	"github.com/haytamxp/redlab/backend/internal/models"
 )
 
-var ErrTaskNotFound = errors.New("task not found")
+var ErrTaskNotFound = errors.New(
+	"task not found",
+)
 
 type TaskRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewTaskRepository(db *pgxpool.Pool) *TaskRepository {
+func NewTaskRepository(
+	db *pgxpool.Pool,
+) *TaskRepository {
 	return &TaskRepository{
 		db: db,
 	}
 }
+
 
 func (r *TaskRepository) Create(
 	ctx context.Context,
@@ -59,6 +64,7 @@ func (r *TaskRepository) Create(
 	return err
 }
 
+
 func (r *TaskRepository) FindByID(
 	ctx context.Context,
 	id uuid.UUID,
@@ -82,9 +88,14 @@ func (r *TaskRepository) FindByID(
 	`
 
 	return r.scanTask(
-		r.db.QueryRow(ctx, query, id),
+		r.db.QueryRow(
+			ctx,
+			query,
+			id,
+		),
 	)
 }
+
 
 func (r *TaskRepository) ClaimNext(
 	ctx context.Context,
@@ -96,7 +107,9 @@ func (r *TaskRepository) ClaimNext(
 		FROM tasks
 		WHERE agent_id = $1
 		  AND status = 'PENDING'
-		ORDER BY priority DESC, created_at ASC
+		ORDER BY
+			priority DESC,
+			created_at ASC
 		LIMIT 1
 		FOR UPDATE SKIP LOCKED
 	)
@@ -122,20 +135,25 @@ func (r *TaskRepository) ClaimNext(
 		t.completed_at
 	`
 
-	task, err := r.scanTask(
-		r.db.QueryRow(
-			ctx,
-			query,
-			agentID,
-		),
-	)
+	task, err :=
+		r.scanTask(
+			r.db.QueryRow(
+				ctx,
+				query,
+				agentID,
+			),
+		)
 
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(
+		err,
+		pgx.ErrNoRows,
+	) {
 		return nil, nil
 	}
 
 	return task, err
 }
+
 
 func (r *TaskRepository) Complete(
 	ctx context.Context,
@@ -171,24 +189,29 @@ func (r *TaskRepository) Complete(
 		completed_at
 	`
 
-	task, err := r.scanTask(
-		r.db.QueryRow(
-			ctx,
-			query,
-			status,
-			result,
-			errorMessage,
-			taskID,
-			agentID,
-		),
-	)
+	task, err :=
+		r.scanTask(
+			r.db.QueryRow(
+				ctx,
+				query,
+				status,
+				result,
+				errorMessage,
+				taskID,
+				agentID,
+			),
+		)
 
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(
+		err,
+		pgx.ErrNoRows,
+	) {
 		return nil, ErrTaskNotFound
 	}
 
 	return task, err
 }
+
 
 func (r *TaskRepository) ListForAgent(
 	ctx context.Context,
@@ -213,21 +236,36 @@ func (r *TaskRepository) ListForAgent(
 	ORDER BY created_at DESC
 	`
 
-	rows, err := r.db.Query(ctx, query, agentID)
+	rows, err :=
+		r.db.Query(
+			ctx,
+			query,
+			agentID,
+		)
+
 	if err != nil {
 		return nil, err
 	}
+
 	defer rows.Close()
 
-	tasks := make([]models.Task, 0)
+	tasks := make(
+		[]models.Task,
+		0,
+	)
 
 	for rows.Next() {
-		task, err := r.scanTask(rows)
+		task, err :=
+			r.scanTask(rows)
+
 		if err != nil {
 			return nil, err
 		}
 
-		tasks = append(tasks, *task)
+		tasks = append(
+			tasks,
+			*task,
+		)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -237,9 +275,104 @@ func (r *TaskRepository) ListForAgent(
 	return tasks, nil
 }
 
+
+/*
+ * Operator task management.
+ */
+
+func (r *TaskRepository) ListAll(
+	ctx context.Context,
+) ([]models.Task, error) {
+	query := `
+	SELECT
+		id,
+		agent_id,
+		type,
+		payload,
+		status,
+		priority,
+		result,
+		error_message,
+		created_at,
+		updated_at,
+		claimed_at,
+		completed_at
+	FROM tasks
+	ORDER BY created_at DESC
+	`
+
+	rows, err :=
+		r.db.Query(
+			ctx,
+			query,
+		)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	tasks := make(
+		[]models.Task,
+		0,
+	)
+
+	for rows.Next() {
+		task, err :=
+			r.scanTask(rows)
+
+		if err != nil {
+			return nil, err
+		}
+
+		tasks = append(
+			tasks,
+			*task,
+		)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return tasks, nil
+}
+
+
+func (r *TaskRepository) DeletePending(
+	ctx context.Context,
+	id uuid.UUID,
+) error {
+	query := `
+	DELETE FROM tasks
+	WHERE id = $1
+	  AND status = 'PENDING'
+	`
+
+	result, err :=
+		r.db.Exec(
+			ctx,
+			query,
+			id,
+		)
+
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return ErrTaskNotFound
+	}
+
+	return nil
+}
+
+
 type taskScanner interface {
 	Scan(dest ...any) error
 }
+
 
 func (r *TaskRepository) scanTask(
 	row taskScanner,

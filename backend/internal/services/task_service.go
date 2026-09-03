@@ -14,9 +14,17 @@ import (
 )
 
 var (
-	ErrTaskTypeRequired  = errors.New("task type is required")
-	ErrInvalidTaskState  = errors.New("invalid task state")
-	ErrInvalidTaskResult = errors.New("task result status must be COMPLETED or FAILED")
+	ErrTaskTypeRequired = errors.New(
+		"task type is required",
+	)
+
+	ErrInvalidTaskState = errors.New(
+		"invalid task state",
+	)
+
+	ErrInvalidTaskResult = errors.New(
+		"task result status must be COMPLETED or FAILED",
+	)
 )
 
 type TaskService struct {
@@ -34,6 +42,7 @@ func NewTaskService(
 	}
 }
 
+
 func (s *TaskService) Create(
 	ctx context.Context,
 	agentID uuid.UUID,
@@ -41,20 +50,26 @@ func (s *TaskService) Create(
 	payload json.RawMessage,
 	priority int,
 ) (*models.Task, error) {
-	taskType = strings.TrimSpace(taskType)
+	taskType =
+		strings.TrimSpace(
+			taskType,
+		)
 
 	if taskType == "" {
-		return nil, ErrTaskTypeRequired
+		return nil,
+			ErrTaskTypeRequired
 	}
 
 	if len(payload) == 0 {
-		payload = json.RawMessage(`{}`)
+		payload =
+			json.RawMessage(`{}`)
 	}
 
-	if _, err := s.agentService.Get(
-		ctx,
-		agentID,
-	); err != nil {
+	if _, err :=
+		s.agentService.Get(
+			ctx,
+			agentID,
+		); err != nil {
 		return nil, err
 	}
 
@@ -62,23 +77,34 @@ func (s *TaskService) Create(
 
 	task := &models.Task{
 		Base: models.Base{
-			ID:        uuid.New(),
+			ID: uuid.New(),
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		AgentID:  agentID,
-		Type:     taskType,
-		Payload:  payload,
-		Status:   models.TaskPending,
+
+		AgentID: agentID,
+
+		Type: taskType,
+
+		Payload: payload,
+
+		Status:
+			models.TaskPending,
+
 		Priority: priority,
 	}
 
-	if err := s.repository.Create(ctx, task); err != nil {
+	if err :=
+		s.repository.Create(
+			ctx,
+			task,
+		); err != nil {
 		return nil, err
 	}
 
 	return task, nil
 }
+
 
 func (s *TaskService) Next(
 	ctx context.Context,
@@ -90,6 +116,7 @@ func (s *TaskService) Next(
 	)
 }
 
+
 func (s *TaskService) Complete(
 	ctx context.Context,
 	taskID uuid.UUID,
@@ -100,23 +127,38 @@ func (s *TaskService) Complete(
 ) (*models.Task, error) {
 	var taskStatus models.TaskStatus
 
-	switch strings.ToUpper(strings.TrimSpace(status)) {
+	switch strings.ToUpper(
+		strings.TrimSpace(status),
+	) {
+
 	case string(models.TaskCompleted):
-		taskStatus = models.TaskCompleted
+		taskStatus =
+			models.TaskCompleted
+
 	case string(models.TaskFailed):
-		taskStatus = models.TaskFailed
+		taskStatus =
+			models.TaskFailed
+
 	default:
-		return nil, ErrInvalidTaskResult
+		return nil,
+			ErrInvalidTaskResult
 	}
 
 	if len(result) == 0 {
-		result = json.RawMessage(`{}`)
+		result =
+			json.RawMessage(`{}`)
 	}
 
 	var taskError *string
 
-	if strings.TrimSpace(errorMessage) != "" {
-		message := strings.TrimSpace(errorMessage)
+	if strings.TrimSpace(
+		errorMessage,
+	) != "" {
+		message :=
+			strings.TrimSpace(
+				errorMessage,
+			)
+
 		taskError = &message
 	}
 
@@ -130,6 +172,7 @@ func (s *TaskService) Complete(
 	)
 }
 
+
 func (s *TaskService) ListForAgent(
 	ctx context.Context,
 	agentID uuid.UUID,
@@ -137,5 +180,29 @@ func (s *TaskService) ListForAgent(
 	return s.repository.ListForAgent(
 		ctx,
 		agentID,
+	)
+}
+
+
+/*
+ * Operator task management.
+ */
+
+func (s *TaskService) ListAll(
+	ctx context.Context,
+) ([]models.Task, error) {
+	return s.repository.ListAll(
+		ctx,
+	)
+}
+
+
+func (s *TaskService) DeletePending(
+	ctx context.Context,
+	id uuid.UUID,
+) error {
+	return s.repository.DeletePending(
+		ctx,
+		id,
 	)
 }

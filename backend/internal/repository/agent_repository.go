@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -26,22 +27,28 @@ func NewAgentRepository(db *pgxpool.Pool) *AgentRepository {
 func (r *AgentRepository) Create(
 	ctx context.Context,
 	agent *models.Agent,
+	tokenHash string,
+	tokenIssuedAt time.Time,
 ) error {
 	query := `
-	INSERT INTO agents (
-		id,
-		name,
-		hostname,
-		ip_address,
-		operating_system,
-		version,
-		status,
-		last_seen,
-		created_at,
-		updated_at
-	)
-	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-	`
+INSERT INTO agents (
+id,
+name,
+hostname,
+ip_address,
+operating_system,
+version,
+status,
+last_seen,
+token_hash,
+token_issued_at,
+created_at,
+updated_at
+)
+VALUES (
+$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
+)
+`
 
 	_, err := r.db.Exec(
 		ctx,
@@ -54,6 +61,8 @@ func (r *AgentRepository) Create(
 		agent.Version,
 		agent.Status,
 		agent.LastSeen,
+		tokenHash,
+		tokenIssuedAt,
 		agent.CreatedAt,
 		agent.UpdatedAt,
 	)
@@ -65,20 +74,20 @@ func (r *AgentRepository) List(
 	ctx context.Context,
 ) ([]models.Agent, error) {
 	query := `
-	SELECT
-		id,
-		name,
-		hostname,
-		ip_address,
-		operating_system,
-		version,
-		status,
-		last_seen,
-		created_at,
-		updated_at
-	FROM agents
-	ORDER BY created_at DESC
-	`
+SELECT
+id,
+name,
+hostname,
+ip_address,
+operating_system,
+version,
+status,
+last_seen,
+created_at,
+updated_at
+FROM agents
+ORDER BY created_at DESC
+`
 
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
@@ -121,20 +130,20 @@ func (r *AgentRepository) FindByID(
 	id uuid.UUID,
 ) (*models.Agent, error) {
 	query := `
-	SELECT
-		id,
-		name,
-		hostname,
-		ip_address,
-		operating_system,
-		version,
-		status,
-		last_seen,
-		created_at,
-		updated_at
-	FROM agents
-	WHERE id = $1
-	`
+SELECT
+id,
+name,
+hostname,
+ip_address,
+operating_system,
+version,
+status,
+last_seen,
+created_at,
+updated_at
+FROM agents
+WHERE id = $1
+`
 
 	var agent models.Agent
 
@@ -166,18 +175,69 @@ func (r *AgentRepository) FindByID(
 	return &agent, nil
 }
 
+func (r *AgentRepository) FindByTokenHash(
+	ctx context.Context,
+	tokenHash string,
+) (*models.Agent, error) {
+	query := `
+SELECT
+id,
+name,
+hostname,
+ip_address,
+operating_system,
+version,
+status,
+last_seen,
+created_at,
+updated_at
+FROM agents
+WHERE token_hash = $1
+  AND deleted_at IS NULL
+`
+
+	var agent models.Agent
+
+	err := r.db.QueryRow(
+		ctx,
+		query,
+		tokenHash,
+	).Scan(
+		&agent.ID,
+		&agent.Name,
+		&agent.Hostname,
+		&agent.IPAddress,
+		&agent.OperatingSystem,
+		&agent.Version,
+		&agent.Status,
+		&agent.LastSeen,
+		&agent.CreatedAt,
+		&agent.UpdatedAt,
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrAgentNotFound
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &agent, nil
+}
+
 func (r *AgentRepository) Heartbeat(
 	ctx context.Context,
 	id uuid.UUID,
 ) error {
 	query := `
-	UPDATE agents
-	SET
-		status = $1,
-		last_seen = NOW(),
-		updated_at = NOW()
-	WHERE id = $2
-	`
+UPDATE agents
+SET
+status = $1,
+last_seen = NOW(),
+updated_at = NOW()
+WHERE id = $2
+`
 
 	result, err := r.db.Exec(
 		ctx,

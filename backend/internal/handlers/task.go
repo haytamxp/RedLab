@@ -32,7 +32,14 @@ func NewTaskHandler(
 	}
 }
 
-func (h *TaskHandler) Create(c *gin.Context) {
+/*
+ * Operator:
+ * Create a task.
+ */
+
+func (h *TaskHandler) Create(
+	c *gin.Context,
+) {
 	var req dto.CreateTaskRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -43,11 +50,11 @@ func (h *TaskHandler) Create(c *gin.Context) {
 				"error":   err.Error(),
 			},
 		)
-
 		return
 	}
 
-	agentID, err := uuid.Parse(req.AgentID)
+	agentID, err :=
+		uuid.Parse(req.AgentID)
 
 	if err != nil {
 		c.JSON(
@@ -57,17 +64,17 @@ func (h *TaskHandler) Create(c *gin.Context) {
 				"error":   "invalid agent_id",
 			},
 		)
-
 		return
 	}
 
-	task, err := h.service.Create(
-		c.Request.Context(),
-		agentID,
-		req.Type,
-		req.Payload,
-		req.Priority,
-	)
+	task, err :=
+		h.service.Create(
+			c.Request.Context(),
+			agentID,
+			req.Type,
+			req.Payload,
+			req.Priority,
+		)
 
 	if err != nil {
 		if errors.Is(
@@ -81,7 +88,6 @@ func (h *TaskHandler) Create(c *gin.Context) {
 					"error":   "agent not found",
 				},
 			)
-
 			return
 		}
 
@@ -92,7 +98,6 @@ func (h *TaskHandler) Create(c *gin.Context) {
 				"error":   "failed to create task",
 			},
 		)
-
 		return
 	}
 
@@ -106,10 +111,131 @@ func (h *TaskHandler) Create(c *gin.Context) {
 	)
 }
 
-func (h *TaskHandler) Next(c *gin.Context) {
-	agentID, err := uuid.Parse(
-		c.Param("id"),
+/*
+ * Operator:
+ * List every task.
+ */
+
+func (h *TaskHandler) ListAll(
+	c *gin.Context,
+) {
+	tasks, err :=
+		h.service.ListAll(
+			c.Request.Context(),
+		)
+
+	if err != nil {
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"success": false,
+				"error":   "failed to retrieve tasks",
+			},
+		)
+		return
+	}
+
+	response := make(
+		[]dto.TaskResponse,
+		0,
+		len(tasks),
 	)
+
+	for i := range tasks {
+		response =
+			append(
+				response,
+				toTaskResponse(
+					&tasks[i],
+				),
+			)
+	}
+
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"success": true,
+			"data":    response,
+		},
+	)
+}
+
+/*
+ * Operator:
+ * Cancel a pending task.
+ */
+
+func (h *TaskHandler) Delete(
+	c *gin.Context,
+) {
+	taskID, err :=
+		uuid.Parse(
+			c.Param("id"),
+		)
+
+	if err != nil {
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"success": false,
+				"error":   "invalid task ID",
+			},
+		)
+		return
+	}
+
+	err =
+		h.service.DeletePending(
+			c.Request.Context(),
+			taskID,
+		)
+
+	if errors.Is(
+		err,
+		repository.ErrTaskNotFound,
+	) {
+		c.JSON(
+			http.StatusNotFound,
+			gin.H{
+				"success": false,
+				"error":   "task not found or task is no longer pending",
+			},
+		)
+		return
+	}
+
+	if err != nil {
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{
+				"success": false,
+				"error":   "failed to delete task",
+			},
+		)
+		return
+	}
+
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"success": true,
+			"message": "Pending task cancelled",
+		},
+	)
+}
+
+/*
+ * Agent:
+ * Claim next task.
+ */
+
+func (h *TaskHandler) Next(
+	c *gin.Context,
+) {
+	agentID, err :=
+		uuid.Parse(
+			c.Param("id"),
+		)
 
 	if err != nil {
 		c.JSON(
@@ -119,11 +245,11 @@ func (h *TaskHandler) Next(c *gin.Context) {
 				"error":   "invalid agent ID",
 			},
 		)
-
 		return
 	}
 
-	agent, ok := h.authenticateAgent(c)
+	agent, ok :=
+		h.authenticateAgent(c)
 
 	if !ok {
 		return
@@ -137,14 +263,14 @@ func (h *TaskHandler) Next(c *gin.Context) {
 				"error":   "agent token does not match requested agent",
 			},
 		)
-
 		return
 	}
 
-	task, err := h.service.Next(
-		c.Request.Context(),
-		agentID,
-	)
+	task, err :=
+		h.service.Next(
+			c.Request.Context(),
+			agentID,
+		)
 
 	if err != nil {
 		c.JSON(
@@ -154,13 +280,13 @@ func (h *TaskHandler) Next(c *gin.Context) {
 				"error":   "failed to retrieve next task",
 			},
 		)
-
 		return
 	}
 
 	if task == nil {
-		c.Status(http.StatusNoContent)
-
+		c.Status(
+			http.StatusNoContent,
+		)
 		return
 	}
 
@@ -173,10 +299,18 @@ func (h *TaskHandler) Next(c *gin.Context) {
 	)
 }
 
-func (h *TaskHandler) Complete(c *gin.Context) {
-	agentID, err := uuid.Parse(
-		c.Param("id"),
-	)
+/*
+ * Agent:
+ * Complete task.
+ */
+
+func (h *TaskHandler) Complete(
+	c *gin.Context,
+) {
+	agentID, err :=
+		uuid.Parse(
+			c.Param("id"),
+		)
 
 	if err != nil {
 		c.JSON(
@@ -186,13 +320,13 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 				"error":   "invalid agent ID",
 			},
 		)
-
 		return
 	}
 
-	taskID, err := uuid.Parse(
-		c.Param("taskId"),
-	)
+	taskID, err :=
+		uuid.Parse(
+			c.Param("taskId"),
+		)
 
 	if err != nil {
 		c.JSON(
@@ -202,11 +336,11 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 				"error":   "invalid task ID",
 			},
 		)
-
 		return
 	}
 
-	agent, ok := h.authenticateAgent(c)
+	agent, ok :=
+		h.authenticateAgent(c)
 
 	if !ok {
 		return
@@ -220,7 +354,6 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 				"error":   "agent token does not match requested agent",
 			},
 		)
-
 		return
 	}
 
@@ -234,18 +367,18 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 				"error":   err.Error(),
 			},
 		)
-
 		return
 	}
 
-	task, err := h.service.Complete(
-		c.Request.Context(),
-		taskID,
-		agentID,
-		req.Status,
-		req.Result,
-		req.Error,
-	)
+	task, err :=
+		h.service.Complete(
+			c.Request.Context(),
+			taskID,
+			agentID,
+			req.Status,
+			req.Result,
+			req.Error,
+		)
 
 	if errors.Is(
 		err,
@@ -258,7 +391,6 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 				"error":   err.Error(),
 			},
 		)
-
 		return
 	}
 
@@ -273,7 +405,6 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 				"error":   "task not found or task is not claimed by this agent",
 			},
 		)
-
 		return
 	}
 
@@ -285,7 +416,6 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 				"error":   "failed to complete task",
 			},
 		)
-
 		return
 	}
 
@@ -300,14 +430,16 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 		string(models.TaskCompleted),
 	) {
 		finding, findingErr :=
-			h.findingService.CreateFromTaskResult(
-				c.Request.Context(),
-				task,
-				req.Result,
-			)
+			h.findingService.
+				CreateFromTaskResult(
+					c.Request.Context(),
+					task,
+					req.Result,
+				)
 
 		if findingErr == nil {
-			response["finding"] = finding
+			response["finding"] =
+				finding
 		} else if !errors.Is(
 			findingErr,
 			services.ErrInvalidFindingResult,
@@ -323,10 +455,18 @@ func (h *TaskHandler) Complete(c *gin.Context) {
 	)
 }
 
-func (h *TaskHandler) ListForAgent(c *gin.Context) {
-	agentID, err := uuid.Parse(
-		c.Param("id"),
-	)
+/*
+ * Agent:
+ * List own tasks.
+ */
+
+func (h *TaskHandler) ListForAgent(
+	c *gin.Context,
+) {
+	agentID, err :=
+		uuid.Parse(
+			c.Param("id"),
+		)
 
 	if err != nil {
 		c.JSON(
@@ -336,11 +476,11 @@ func (h *TaskHandler) ListForAgent(c *gin.Context) {
 				"error":   "invalid agent ID",
 			},
 		)
-
 		return
 	}
 
-	agent, ok := h.authenticateAgent(c)
+	agent, ok :=
+		h.authenticateAgent(c)
 
 	if !ok {
 		return
@@ -354,14 +494,14 @@ func (h *TaskHandler) ListForAgent(c *gin.Context) {
 				"error":   "agent token does not match requested agent",
 			},
 		)
-
 		return
 	}
 
-	tasks, err := h.service.ListForAgent(
-		c.Request.Context(),
-		agentID,
-	)
+	tasks, err :=
+		h.service.ListForAgent(
+			c.Request.Context(),
+			agentID,
+		)
 
 	if err != nil {
 		c.JSON(
@@ -371,7 +511,6 @@ func (h *TaskHandler) ListForAgent(c *gin.Context) {
 				"error":   "failed to retrieve tasks",
 			},
 		)
-
 		return
 	}
 
@@ -382,10 +521,13 @@ func (h *TaskHandler) ListForAgent(c *gin.Context) {
 	)
 
 	for i := range tasks {
-		response = append(
-			response,
-			toTaskResponse(&tasks[i]),
-		)
+		response =
+			append(
+				response,
+				toTaskResponse(
+					&tasks[i],
+				),
+			)
 	}
 
 	c.JSON(
@@ -400,9 +542,12 @@ func (h *TaskHandler) ListForAgent(c *gin.Context) {
 func (h *TaskHandler) authenticateAgent(
 	c *gin.Context,
 ) (*models.Agent, bool) {
-	token := extractBearerToken(
-		c.GetHeader("Authorization"),
-	)
+	token :=
+		extractBearerToken(
+			c.GetHeader(
+				"Authorization",
+			),
+		)
 
 	if token == "" {
 		c.JSON(
@@ -416,10 +561,12 @@ func (h *TaskHandler) authenticateAgent(
 		return nil, false
 	}
 
-	agent, err := h.agentService.AuthenticateToken(
-		c.Request.Context(),
-		token,
-	)
+	agent, err :=
+		h.agentService.
+			AuthenticateToken(
+				c.Request.Context(),
+				token,
+			)
 
 	if errors.Is(
 		err,
@@ -455,21 +602,32 @@ func toTaskResponse(
 	task *models.Task,
 ) dto.TaskResponse {
 	response := dto.TaskResponse{
-		ID:           task.ID.String(),
-		AgentID:      task.AgentID.String(),
-		Type:         task.Type,
-		Payload:      task.Payload,
-		Status:       string(task.Status),
-		Priority:     task.Priority,
+		ID: task.ID.String(),
+
+		AgentID: task.AgentID.String(),
+
+		Type: task.Type,
+
+		Payload: task.Payload,
+
+		Status: string(task.Status),
+
+		Priority: task.Priority,
+
 		ErrorMessage: task.ErrorMessage,
-		CreatedAt:    task.CreatedAt,
-		UpdatedAt:    task.UpdatedAt,
-		ClaimedAt:    task.ClaimedAt,
-		CompletedAt:  task.CompletedAt,
+
+		CreatedAt: task.CreatedAt,
+
+		UpdatedAt: task.UpdatedAt,
+
+		ClaimedAt: task.ClaimedAt,
+
+		CompletedAt: task.CompletedAt,
 	}
 
 	if task.Result != nil {
-		response.Result = *task.Result
+		response.Result =
+			*task.Result
 	}
 
 	return response

@@ -7,6 +7,7 @@ import (
 
 	"github.com/haytamxp/redlab/backend/internal/auth"
 	"github.com/haytamxp/redlab/backend/internal/database"
+	"github.com/haytamxp/redlab/backend/internal/dto"
 	"github.com/haytamxp/redlab/backend/internal/handlers"
 	"github.com/haytamxp/redlab/backend/internal/permissions"
 	"github.com/haytamxp/redlab/backend/internal/reporting"
@@ -19,20 +20,34 @@ func (r *Router) RegisterRoutes(
 	agentHandler *handlers.AgentHandler,
 	jwtSecret string,
 ) {
+	/*
+	 * Public health.
+	 */
+
 	r.Engine.GET(
 		"/health",
 		handlers.Health,
 	)
 
-	api := r.Engine.Group("/api")
-	v1 := api.Group("/v1")
+	api := r.Engine.Group(
+		"/api",
+	)
+
+	v1 := api.Group(
+		"/v1",
+	)
 
 	v1.GET(
 		"/health",
 		handlers.Health,
 	)
 
-	authGroup := v1.Group("/auth")
+	/*
+	 * Authentication.
+	 */
+
+	authGroup :=
+		v1.Group("/auth")
 
 	authGroup.POST(
 		"/register",
@@ -44,36 +59,47 @@ func (r *Router) RegisterRoutes(
 		authHandler.Login,
 	)
 
-	agentRepository := repository.NewAgentRepository(
-		database.DB,
-	)
+	/*
+	 * Services.
+	 */
 
-	agentService := services.NewAgentService(
-		agentRepository,
-	)
+	agentRepository :=
+		repository.NewAgentRepository(
+			database.DB,
+		)
 
-	taskRepository := repository.NewTaskRepository(
-		database.DB,
-	)
+	agentService :=
+		services.NewAgentService(
+			agentRepository,
+		)
 
-	findingRepository := repository.NewFindingRepository(
-		database.DB,
-	)
+	taskRepository :=
+		repository.NewTaskRepository(
+			database.DB,
+		)
 
-	findingService := services.NewFindingService(
-		findingRepository,
-	)
+	findingRepository :=
+		repository.NewFindingRepository(
+			database.DB,
+		)
 
-	taskService := services.NewTaskService(
-		taskRepository,
-		agentService,
-	)
+	findingService :=
+		services.NewFindingService(
+			findingRepository,
+		)
 
-	taskHandler := handlers.NewTaskHandler(
-		taskService,
-		agentService,
-		findingService,
-	)
+	taskService :=
+		services.NewTaskService(
+			taskRepository,
+			agentService,
+		)
+
+	taskHandler :=
+		handlers.NewTaskHandler(
+			taskService,
+			agentService,
+			findingService,
+		)
 
 	assessmentRepository :=
 		repository.NewAssessmentRepository(
@@ -101,9 +127,9 @@ func (r *Router) RegisterRoutes(
 			reportingService,
 		)
 
-	// -------------------------
-	// Agent-authenticated
-	// -------------------------
+	/*
+	 * Agent-authenticated routes.
+	 */
 
 	v1.POST(
 		"/agents/:id/tasks/next",
@@ -125,15 +151,22 @@ func (r *Router) RegisterRoutes(
 		agentHandler.Heartbeat,
 	)
 
-	// -------------------------
-	// Human-authenticated
-	// -------------------------
+	/*
+	 * Human-authenticated routes.
+	 */
 
-	protected := v1.Group("/")
+	protected :=
+		v1.Group("/")
 
 	protected.Use(
-		auth.JWTMiddleware(jwtSecret),
+		auth.JWTMiddleware(
+			jwtSecret,
+		),
 	)
+
+	/*
+	 * Profile.
+	 */
 
 	protected.GET(
 		"/profile",
@@ -142,21 +175,38 @@ func (r *Router) RegisterRoutes(
 				http.StatusOK,
 				gin.H{
 					"success": true,
-					"message": "Authenticated",
-					"user_id": c.GetString(
-						"userID",
-					),
-					"role": c.GetString(
-						"role",
-					),
+					"message":
+						"Authenticated",
+					"user_id":
+						c.GetString(
+							"userID",
+						),
+					"role":
+						c.GetString(
+							"role",
+						),
 				},
 			)
 		},
 	)
 
-	agents := protected.Group(
-		"/agents",
+	/*
+	 * Dashboard.
+	 */
+
+	protected.GET(
+		"/dashboard/stats",
+		handlers.DashboardStatsHandler,
 	)
+
+	/*
+	 * Agents.
+	 */
+
+	agents :=
+		protected.Group(
+			"/agents",
+		)
 
 	agents.Use(
 		auth.RequirePermission(
@@ -179,9 +229,14 @@ func (r *Router) RegisterRoutes(
 		agentHandler.Get,
 	)
 
-	tasks := protected.Group(
-		"/tasks",
-	)
+	/*
+	 * Tasks.
+	 */
+
+	tasks :=
+		protected.Group(
+			"/tasks",
+		)
 
 	tasks.Use(
 		auth.RequirePermission(
@@ -194,9 +249,24 @@ func (r *Router) RegisterRoutes(
 		taskHandler.Create,
 	)
 
-	assessments := protected.Group(
-		"/assessments",
+	tasks.GET(
+		"",
+		taskHandler.ListAll,
 	)
+
+	tasks.DELETE(
+		"/:id",
+		taskHandler.Delete,
+	)
+
+	/*
+	 * Assessments.
+	 */
+
+	assessments :=
+		protected.Group(
+			"/assessments",
+		)
 
 	assessments.Use(
 		auth.RequirePermission(
@@ -229,9 +299,14 @@ func (r *Router) RegisterRoutes(
 		assessmentHandler.UpdateStatus,
 	)
 
-	findings := protected.Group(
-		"/findings",
-	)
+	/*
+	 * Findings.
+	 */
+
+	findings :=
+		protected.Group(
+			"/findings",
+		)
 
 	findings.Use(
 		auth.RequirePermission(
@@ -252,4 +327,6 @@ func (r *Router) RegisterRoutes(
 			findingService,
 		).Get,
 	)
+
+	_ = dto.TaskResponse{}
 }
