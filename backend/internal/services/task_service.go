@@ -42,7 +42,6 @@ func NewTaskService(
 	}
 }
 
-
 func (s *TaskService) Create(
 	ctx context.Context,
 	agentID uuid.UUID,
@@ -77,7 +76,7 @@ func (s *TaskService) Create(
 
 	task := &models.Task{
 		Base: models.Base{
-			ID: uuid.New(),
+			ID:        uuid.New(),
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
@@ -88,8 +87,7 @@ func (s *TaskService) Create(
 
 		Payload: payload,
 
-		Status:
-			models.TaskPending,
+		Status: models.TaskPending,
 
 		Priority: priority,
 	}
@@ -105,7 +103,6 @@ func (s *TaskService) Create(
 	return task, nil
 }
 
-
 func (s *TaskService) Next(
 	ctx context.Context,
 	agentID uuid.UUID,
@@ -115,7 +112,6 @@ func (s *TaskService) Next(
 		agentID,
 	)
 }
-
 
 func (s *TaskService) Complete(
 	ctx context.Context,
@@ -172,7 +168,6 @@ func (s *TaskService) Complete(
 	)
 }
 
-
 func (s *TaskService) ListForAgent(
 	ctx context.Context,
 	agentID uuid.UUID,
@@ -182,7 +177,6 @@ func (s *TaskService) ListForAgent(
 		agentID,
 	)
 }
-
 
 /*
  * Operator task management.
@@ -196,7 +190,6 @@ func (s *TaskService) ListAll(
 	)
 }
 
-
 func (s *TaskService) DeletePending(
 	ctx context.Context,
 	id uuid.UUID,
@@ -205,4 +198,16 @@ func (s *TaskService) DeletePending(
 		ctx,
 		id,
 	)
+}
+
+func (s *TaskService) ReviewCompleted(
+	ctx context.Context,
+	id uuid.UUID,
+	status models.TaskReviewStatus,
+) error {
+	if status != models.TaskReviewApproved &&
+		status != models.TaskReviewRejected {
+		return ErrInvalidTaskState
+	}
+	return s.repository.ReviewCompleted(ctx, id, status)
 }

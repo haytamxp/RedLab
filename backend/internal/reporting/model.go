@@ -3,9 +3,10 @@ package reporting
 import "time"
 
 type Report struct {
-	Assessment  AssessmentReport
-	Findings    []FindingReport
-	GeneratedAt time.Time
+	Assessment     AssessmentReport
+	Findings       []FindingReport
+	SeverityCounts map[string]int
+	GeneratedAt    time.Time
 }
 
 type AssessmentReport struct {

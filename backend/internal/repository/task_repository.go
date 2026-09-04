@@ -27,7 +27,6 @@ func NewTaskRepository(
 	}
 }
 
-
 func (r *TaskRepository) Create(
 	ctx context.Context,
 	task *models.Task,
@@ -64,7 +63,6 @@ func (r *TaskRepository) Create(
 	return err
 }
 
-
 func (r *TaskRepository) FindByID(
 	ctx context.Context,
 	id uuid.UUID,
@@ -82,7 +80,9 @@ func (r *TaskRepository) FindByID(
 		created_at,
 		updated_at,
 		claimed_at,
-		completed_at
+		completed_at,
+		review_status,
+		reviewed_at
 	FROM tasks
 	WHERE id = $1
 	`
@@ -95,7 +95,6 @@ func (r *TaskRepository) FindByID(
 		),
 	)
 }
-
 
 func (r *TaskRepository) ClaimNext(
 	ctx context.Context,
@@ -132,7 +131,9 @@ func (r *TaskRepository) ClaimNext(
 		t.created_at,
 		t.updated_at,
 		t.claimed_at,
-		t.completed_at
+		t.completed_at,
+		t.review_status,
+		t.reviewed_at
 	`
 
 	task, err :=
@@ -153,7 +154,6 @@ func (r *TaskRepository) ClaimNext(
 
 	return task, err
 }
-
 
 func (r *TaskRepository) Complete(
 	ctx context.Context,
@@ -186,7 +186,9 @@ func (r *TaskRepository) Complete(
 		created_at,
 		updated_at,
 		claimed_at,
-		completed_at
+		completed_at,
+		review_status,
+		reviewed_at
 	`
 
 	task, err :=
@@ -212,7 +214,6 @@ func (r *TaskRepository) Complete(
 	return task, err
 }
 
-
 func (r *TaskRepository) ListForAgent(
 	ctx context.Context,
 	agentID uuid.UUID,
@@ -230,7 +231,9 @@ func (r *TaskRepository) ListForAgent(
 		created_at,
 		updated_at,
 		claimed_at,
-		completed_at
+		completed_at,
+		review_status,
+		reviewed_at
 	FROM tasks
 	WHERE agent_id = $1
 	ORDER BY created_at DESC
@@ -275,7 +278,6 @@ func (r *TaskRepository) ListForAgent(
 	return tasks, nil
 }
 
-
 /*
  * Operator task management.
  */
@@ -296,7 +298,9 @@ func (r *TaskRepository) ListAll(
 		created_at,
 		updated_at,
 		claimed_at,
-		completed_at
+		completed_at,
+		review_status,
+		reviewed_at
 	FROM tasks
 	ORDER BY created_at DESC
 	`
@@ -339,7 +343,6 @@ func (r *TaskRepository) ListAll(
 	return tasks, nil
 }
 
-
 func (r *TaskRepository) DeletePending(
 	ctx context.Context,
 	id uuid.UUID,
@@ -368,11 +371,29 @@ func (r *TaskRepository) DeletePending(
 	return nil
 }
 
+func (r *TaskRepository) ReviewCompleted(
+	ctx context.Context,
+	id uuid.UUID,
+	status models.TaskReviewStatus,
+) error {
+	result, err := r.db.Exec(ctx, `
+		UPDATE tasks
+		SET review_status = $1, reviewed_at = NOW(), updated_at = NOW()
+		WHERE id = $2
+		  AND status IN ('COMPLETED', 'FAILED')
+	`, status, id)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return ErrTaskNotFound
+	}
+	return nil
+}
 
 type taskScanner interface {
 	Scan(dest ...any) error
 }
-
 
 func (r *TaskRepository) scanTask(
 	row taskScanner,
@@ -392,6 +413,8 @@ func (r *TaskRepository) scanTask(
 		&task.UpdatedAt,
 		&task.ClaimedAt,
 		&task.CompletedAt,
+		&task.ReviewStatus,
+		&task.ReviewedAt,
 	)
 
 	if err != nil {

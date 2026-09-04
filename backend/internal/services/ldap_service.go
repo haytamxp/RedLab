@@ -61,6 +61,16 @@ func (s *LDAPService) FindUser(
 	return user, nil
 }
 
+func (s *LDAPService) ListUsers(
+	ctx context.Context,
+	search string,
+) ([]redlabldap.User, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return s.client.ListUsers(search)
+}
+
 func (s *LDAPService) Close() {
 	s.client.Close()
 }

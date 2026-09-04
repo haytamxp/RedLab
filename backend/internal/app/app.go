@@ -63,6 +63,7 @@ func New() (*App, error) {
 	r.RegisterRoutes(
 		authHandler,
 		agentHandler,
+		ldapService,
 		cfg.JWT.Secret,
 	)
 

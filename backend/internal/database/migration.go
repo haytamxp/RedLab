@@ -125,6 +125,8 @@ func Migrate(db *pgxpool.Pool) error {
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 		claimed_at TIMESTAMP NULL,
 		completed_at TIMESTAMP NULL,
+		review_status TEXT NOT NULL DEFAULT 'PENDING',
+		reviewed_at TIMESTAMP NULL,
 
 		CONSTRAINT fk_tasks_agent
 			FOREIGN KEY (agent_id)
@@ -135,6 +137,14 @@ func Migrate(db *pgxpool.Pool) error {
 
 	if _, err := db.Exec(ctx, tasksQuery); err != nil {
 		return fmt.Errorf("create tasks table: %w", err)
+	}
+
+	if _, err := db.Exec(ctx, `
+		ALTER TABLE tasks
+		ADD COLUMN IF NOT EXISTS review_status TEXT NOT NULL DEFAULT 'PENDING',
+		ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP NULL;
+	`); err != nil {
+		return fmt.Errorf("update task review columns: %w", err)
 	}
 
 	taskIndexes := `

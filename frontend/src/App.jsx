@@ -7,6 +7,7 @@ import React, {
 import {
     createTask,
     deleteTask,
+    getDirectoryUsers,
     getAgents,
     getAssessments,
     getDashboardStats,
@@ -16,6 +17,7 @@ import {
     getReport,
     getTasks,
     login,
+    reviewTask,
     updateAssessmentStatus
 } from "./services/api";
 const NAV = [
@@ -129,6 +131,9 @@ function App() {
     const [userStats, setUserStats] =
         useState(null);
 
+    const [directoryUsers, setDirectoryUsers] =
+        useState([]);
+
    const [taskHistory, setTaskHistory] =
     useState([]);
 
@@ -146,6 +151,9 @@ const [dashboard, setDashboard] =
 
     const [message, setMessage] =
         useState("");
+
+    const [lastUpdated, setLastUpdated] =
+        useState(null);
 
     const [taskAgent, setTaskAgent] =
         useState("");
@@ -214,7 +222,8 @@ const [dashboard, setDashboard] =
     assessmentData,
     findingData,
     taskData,
-    dashboardData
+    dashboardData,
+    directoryData
 ] = await Promise.all([
     getHealth(),
     getProfile(token),
@@ -222,7 +231,8 @@ const [dashboard, setDashboard] =
     getAssessments(token),
     getFindings(token),
     getTasks(token),
-    getDashboardStats(token)
+    getDashboardStats(token),
+    getDirectoryUsers(token)
 ]);
 
             setHealth(healthData);
@@ -238,10 +248,15 @@ const [dashboard, setDashboard] =
 setDashboard(
     dashboardData
 );
+            setDirectoryUsers(
+                directoryData
+            );
 
-            if (
-                agentData.length > 0 &&
-                !taskAgent
+setLastUpdated(new Date());
+
+if (
+    agentData.length > 0 &&
+    !taskAgent
             ) {
                 setTaskAgent(
                     agentData[0].id
@@ -259,13 +274,21 @@ setDashboard(
     }
 
     useEffect(() => {
-        if (token) {
-            loadData();
-        } else {
+        if (!token) {
             getHealth()
                 .then(setHealth)
                 .catch(() => {});
+            return undefined;
         }
+
+        loadData();
+        const refreshTimer = setInterval(
+            loadData,
+            30000
+        );
+
+        return () =>
+            clearInterval(refreshTimer);
     }, [token]);
 
     function logout() {
@@ -279,7 +302,32 @@ setDashboard(
         setAssessments([]);
         setFindings([]);
         setUserStats(null);
+        setLastUpdated(null);
         setPage("dashboard");
+    }
+
+    function openReportInNewTab() {
+        if (!report?.html) {
+            return;
+        }
+
+        const reportWindow = window.open(
+            "",
+            "_blank",
+            "popup,width=1200,height=900"
+        );
+
+        if (!reportWindow) {
+            setError(
+                "Your browser blocked the report window. Allow pop-ups to open it."
+            );
+            return;
+        }
+
+        reportWindow.document.write(
+            report.html
+        );
+        reportWindow.document.close();
     }
 
     async function handleLogin(
@@ -431,6 +479,28 @@ setDashboard(
                 err.message ||
                 "Unable to load report"
             );
+        }
+
+        async function handleDeleteTask(taskId) {
+            setError("");
+            try {
+                await deleteTask(token, taskId);
+                setMessage("Pending task cancelled.");
+                await loadData();
+            } catch (err) {
+                setError(err.message || "Unable to cancel task");
+            }
+        }
+
+        async function handleReviewTask(taskId, status) {
+            setError("");
+            try {
+                await reviewTask(token, taskId, status);
+                setMessage(`Task marked ${status.toLowerCase()}.`);
+                await loadData();
+            } catch (err) {
+                setError(err.message || "Unable to review task");
+            }
         }
     }
 
@@ -659,6 +729,12 @@ setDashboard(
                                 : "Backend Offline"}
                         </span>
 
+                        <span className="sync-status">
+                            {lastUpdated
+                                ? `Live sync · ${lastUpdated.toLocaleTimeString()}`
+                                : "Waiting for sync"}
+                        </span>
+
                         <button
                             className="icon-button"
                             title="Toggle light / dark mode"
@@ -717,6 +793,9 @@ setDashboard(
                             assessments={
                                 assessments
                             }
+                            taskHistory={
+                                taskHistory
+                            }
                             onReport={
                                 handleReport
                             }
@@ -773,6 +852,12 @@ setDashboard(
                             onSubmit={
                                 handleCreateTask
                             }
+                            onDelete={
+                                handleDeleteTask
+                            }
+                            onReview={
+                                handleReviewTask
+                            }
                         />
                     )}
 
@@ -815,9 +900,8 @@ setDashboard(
                     {page ===
                         "users" && (
                         <UsersPage
-                            stats={
-                                userStats
-                            }
+                            stats={userStats}
+                            directoryUsers={directoryUsers}
                         />
                     )}
                 </section>
@@ -847,6 +931,16 @@ setDashboard(
                                 </h2>
                             </div>
 
+                            <div className="report-modal-actions">
+                                <button
+                                    className="secondary-button"
+                                    onClick={
+                                        openReportInNewTab
+                                    }
+                                >
+                                    Open full report
+                                </button>
+
                             <button
                                 className="icon-button"
                                 onClick={() =>
@@ -857,6 +951,7 @@ setDashboard(
                             >
                                 ×
                             </button>
+                            </div>
                         </div>
 
                         <iframe
@@ -893,6 +988,7 @@ function Dashboard({
     agents,
     findings,
     assessments,
+    taskHistory,
     onReport
 }) {
     return (
@@ -1027,6 +1123,16 @@ function Dashboard({
                     }
                 />
             </Panel>
+
+            <Panel
+                title="Live task activity"
+                subtitle="Latest tasks returned by the backend"
+                count={taskHistory.length}
+            >
+                <ActivityFeed
+                    tasks={taskHistory.slice(0, 6)}
+                />
+            </Panel>
         </>
     );
 }
@@ -1041,6 +1147,44 @@ function Metric({
             <span>{label}</span>
             <strong>{value}</strong>
             <small>{hint}</small>
+        </div>
+    );
+}
+
+function ActivityFeed({ tasks }) {
+    if (!tasks.length) {
+        return (
+            <Empty text="No task activity has been reported yet." />
+        );
+    }
+
+    return (
+        <div className="activity-feed">
+            {tasks.map((task) => (
+                <div
+                    className="activity-item"
+                    key={task.id}
+                >
+                    <span className="activity-pulse" />
+                    <div className="data-main">
+                        <strong>
+                            {task.type ||
+                                "Assessment task"}
+                        </strong>
+                        <small>
+                            {task.status ||
+                                "PENDING"}{" "}
+                            · Agent{" "}
+                            {task.agent_id ||
+                                "unassigned"}
+                        </small>
+                    </div>
+                    <span className="badge">
+                        {task.priority ??
+                            "—"}
+                    </span>
+                </div>
+            ))}
         </div>
     );
 }
@@ -1248,7 +1392,9 @@ function TasksPage({
     setPriority,
     payload,
     setPayload,
-    onSubmit
+    onSubmit,
+    onDelete,
+    onReview
 }) {
     return (
         <div className="grid-two">
@@ -1433,6 +1579,59 @@ function TasksPage({
                                             task.status
                                         }
                                     </span>
+                                    {task.status ===
+                                        "PENDING" && (
+                                        <button
+                                            className="small-button danger-button"
+                                            onClick={() =>
+                                                onDelete(
+                                                    task.id
+                                                )
+                                            }
+                                        >
+                                            Cancel
+                                        </button>
+                                    )}
+                                    {(task.status ===
+                                        "COMPLETED" ||
+                                        task.status ===
+                                            "FAILED") &&
+                                        task.review_status !==
+                                            "APPROVED" &&
+                                        task.review_status !==
+                                            "REJECTED" && (
+                                        <>
+                                            <button
+                                                className="small-button"
+                                                onClick={() =>
+                                                    onReview(
+                                                        task.id,
+                                                        "APPROVED"
+                                                    )
+                                                }
+                                            >
+                                                Approve
+                                            </button>
+                                            <button
+                                                className="small-button danger-button"
+                                                onClick={() =>
+                                                    onReview(
+                                                        task.id,
+                                                        "REJECTED"
+                                                    )
+                                                }
+                                            >
+                                                Reject
+                                            </button>
+                                        </>
+                                    )}
+                                    {task.review_status &&
+                                        task.review_status !==
+                                            "PENDING" && (
+                                        <span className="badge good">
+                                            {task.review_status}
+                                        </span>
+                                    )}
                                 </div>
                             )
                         )}
@@ -1715,105 +1914,97 @@ function ReportsPage({
 }
 
 function UsersPage({
-    stats
+    stats,
+    directoryUsers
 }) {
+    const enabledUsers = directoryUsers.filter(
+        (user) => user.enabled
+    ).length;
+
     return (
         <>
             <div className="metrics user-metrics">
                 <Metric
                     label="Total Users"
                     value={
-                        stats?.total ??
-                        "—"
+                        directoryUsers.length
                     }
-                    hint="RedLab platform accounts"
+                    hint="Active Directory users"
                 />
 
                 <Metric
                     label="Active Users"
                     value={
-                        stats?.active ??
-                        "—"
+                        enabledUsers
                     }
-                    hint="enabled accounts"
+                    hint="enabled directory accounts"
                 />
 
                 <Metric
                     label="Inactive Users"
                     value={
-                        stats?.inactive ??
-                        "—"
+                        directoryUsers.length -
+                        enabledUsers
                     }
-                    hint="disabled accounts"
+                    hint="disabled directory accounts"
                 />
 
                 <Metric
                     label="LDAP Users"
                     value={
-                        stats?.ldap ??
-                        "—"
+                        directoryUsers.length
                     }
-                    hint="directory-backed accounts"
+                    hint="synced from configured LDAP"
                 />
             </div>
 
             <Panel
-                title="User Management"
-                subtitle="Authentication and operator administration"
+                title="Active Directory users"
+                subtitle="Read-only directory view from the configured LDAP service account"
+                count={directoryUsers.length}
             >
-                {!stats ? (
-                    <div className="feature-box">
-                        <div className="eyebrow">
-                            BACKEND USER MANAGEMENT
-                        </div>
-
-                        <h2>
-                            Administrative
-                            user API is the
-                            next backend
-                            component
-                        </h2>
-
-                        <p>
-                            The current backend
-                            supports registration,
-                            login and profile
-                            retrieval. The
-                            administrative
-                            user statistics and
-                            CRUD endpoints are
-                            not exposed yet,
-                            so the frontend
-                            intentionally does
-                            not invent user
-                            counts.
-                        </p>
-
-                        <div className="feature-note">
-                            Planned:
-                            GET /api/v1/users/stats
-                            and user CRUD
-                            operations.
-                        </div>
+                {directoryUsers.length ? (
+                    <div className="data-list">
+                        {directoryUsers.map((user) => (
+                            <div
+                                className="data-row"
+                                key={user.dn}
+                            >
+                                <div className="data-main">
+                                    <strong>
+                                        {user.display_name ||
+                                            user.username}
+                                    </strong>
+                                    <small>
+                                        {user.username}
+                                        {user.email
+                                            ? ` · ${user.email}`
+                                            : ""}
+                                    </small>
+                                    <small>
+                                        {user.groups?.length
+                                            ? user.groups.join(
+                                                  " · "
+                                              )
+                                            : "No direct group memberships"}
+                                    </small>
+                                </div>
+                                <span
+                                    className={
+                                        user.enabled
+                                            ? "badge good"
+                                            : "badge"
+                                    }
+                                >
+                                    {user.enabled
+                                        ? "ENABLED"
+                                        : "DISABLED"}
+                                </span>
+                            </div>
+                        ))}
                     </div>
                 ) : (
-                    <div className="feature-box">
-                        <div className="eyebrow">
-                            USER DIRECTORY
-                        </div>
-
-                        <h2>
-                            User statistics
-                            connected
-                        </h2>
-
-                        <p>
-                            The RedLab
-                            administration API
-                            is returning live
-                            user metrics.
-                        </p>
-                    </div>
+                    <Empty text="No directory users returned. Check LDAP connectivity and service-account permissions." />
                 )}
             </Panel>
         </>

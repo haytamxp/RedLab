@@ -18,6 +18,7 @@ import (
 func (r *Router) RegisterRoutes(
 	authHandler *handlers.AuthHandler,
 	agentHandler *handlers.AgentHandler,
+	ldapService *services.LDAPService,
 	jwtSecret string,
 ) {
 	/*
@@ -175,16 +176,13 @@ func (r *Router) RegisterRoutes(
 				http.StatusOK,
 				gin.H{
 					"success": true,
-					"message":
-						"Authenticated",
-					"user_id":
-						c.GetString(
-							"userID",
-						),
-					"role":
-						c.GetString(
-							"role",
-						),
+					"message": "Authenticated",
+					"user_id": c.GetString(
+						"userID",
+					),
+					"role": c.GetString(
+						"role",
+					),
 				},
 			)
 		},
@@ -197,6 +195,13 @@ func (r *Router) RegisterRoutes(
 	protected.GET(
 		"/dashboard/stats",
 		handlers.DashboardStatsHandler,
+	)
+
+	directory := protected.Group("/directory")
+	directory.Use(auth.RequirePermission(permissions.LDAPSync))
+	directory.GET(
+		"/users",
+		handlers.NewDirectoryHandler(ldapService).ListUsers,
 	)
 
 	/*
@@ -257,6 +262,10 @@ func (r *Router) RegisterRoutes(
 	tasks.DELETE(
 		"/:id",
 		taskHandler.Delete,
+	)
+	tasks.PATCH(
+		"/:id/review",
+		taskHandler.Review,
 	)
 
 	/*

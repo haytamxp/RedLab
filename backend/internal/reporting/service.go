@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -47,10 +48,20 @@ func (s *Service) Build(
 		return nil, err
 	}
 
+	severityCounts := make(map[string]int)
+	for _, finding := range findings {
+		severityCounts[strings.ToUpper(
+			strings.TrimSpace(
+				finding.Severity,
+			),
+		)]++
+	}
+
 	return &Report{
-		Assessment:  *assessment,
-		Findings:    findings,
-		GeneratedAt: time.Now(),
+		Assessment:     *assessment,
+		Findings:       findings,
+		SeverityCounts: severityCounts,
+		GeneratedAt:    time.Now(),
 	}, nil
 }
 

@@ -31,4 +31,10 @@ type TaskResponse struct {
 	UpdatedAt    time.Time       `json:"updated_at"`
 	ClaimedAt    *time.Time      `json:"claimed_at,omitempty"`
 	CompletedAt  *time.Time      `json:"completed_at,omitempty"`
+	ReviewStatus string          `json:"review_status"`
+	ReviewedAt   *time.Time      `json:"reviewed_at,omitempty"`
+}
+
+type ReviewTaskRequest struct {
+	Status string `json:"status" binding:"required"`
 }

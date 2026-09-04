@@ -307,6 +307,31 @@ export async function deleteTask(
     );
 }
 
+export async function reviewTask(token, taskId, status) {
+    return request(
+        `/tasks/${encodeURIComponent(taskId)}/review`,
+        {
+            method: "PATCH",
+            token,
+            body: JSON.stringify({ status })
+        }
+    );
+}
+
+export async function getDirectoryUsers(token, search = "") {
+    const query = search
+        ? `?search=${encodeURIComponent(search)}`
+        : "";
+    const response = await request(
+        `/directory/users${query}`,
+        {
+            method: "GET",
+            token
+        }
+    );
+    return response?.data || [];
+}
+
 
 /* =========================================================
  * DASHBOARD

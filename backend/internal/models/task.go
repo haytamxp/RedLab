@@ -8,12 +8,16 @@ import (
 )
 
 type TaskStatus string
+type TaskReviewStatus string
 
 const (
-	TaskPending   TaskStatus = "PENDING"
-	TaskClaimed   TaskStatus = "CLAIMED"
-	TaskCompleted TaskStatus = "COMPLETED"
-	TaskFailed    TaskStatus = "FAILED"
+	TaskPending        TaskStatus       = "PENDING"
+	TaskClaimed        TaskStatus       = "CLAIMED"
+	TaskCompleted      TaskStatus       = "COMPLETED"
+	TaskFailed         TaskStatus       = "FAILED"
+	TaskReviewPending  TaskReviewStatus = "PENDING"
+	TaskReviewApproved TaskReviewStatus = "APPROVED"
+	TaskReviewRejected TaskReviewStatus = "REJECTED"
 )
 
 type Task struct {
@@ -35,5 +39,7 @@ type Task struct {
 
 	ClaimedAt *time.Time `json:"claimed_at,omitempty"`
 
-	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	CompletedAt  *time.Time       `json:"completed_at,omitempty"`
+	ReviewStatus TaskReviewStatus `json:"review_status"`
+	ReviewedAt   *time.Time       `json:"reviewed_at,omitempty"`
 }

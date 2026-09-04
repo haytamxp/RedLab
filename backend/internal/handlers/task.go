@@ -299,6 +299,36 @@ func (h *TaskHandler) Next(
 	)
 }
 
+func (h *TaskHandler) Review(c *gin.Context) {
+	taskID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid task ID"})
+		return
+	}
+
+	var req dto.ReviewTaskRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	status := models.TaskReviewStatus(strings.ToUpper(strings.TrimSpace(req.Status)))
+	if err := h.service.ReviewCompleted(c.Request.Context(), taskID, status); err != nil {
+		if errors.Is(err, services.ErrInvalidTaskState) {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "review status must be APPROVED or REJECTED"})
+			return
+		}
+		if errors.Is(err, repository.ErrTaskNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "completed task not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "failed to review task"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Task review saved"})
+}
+
 /*
  * Agent:
  * Complete task.
@@ -622,7 +652,9 @@ func toTaskResponse(
 
 		ClaimedAt: task.ClaimedAt,
 
-		CompletedAt: task.CompletedAt,
+		CompletedAt:  task.CompletedAt,
+		ReviewStatus: string(task.ReviewStatus),
+		ReviewedAt:   task.ReviewedAt,
 	}
 
 	if task.Result != nil {
