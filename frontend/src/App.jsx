@@ -134,6 +134,9 @@ function App() {
     const [directoryUsers, setDirectoryUsers] =
         useState([]);
 
+    const [directoryError, setDirectoryError] =
+        useState("");
+
    const [taskHistory, setTaskHistory] =
     useState([]);
 
@@ -232,7 +235,13 @@ const [dashboard, setDashboard] =
     getFindings(token),
     getTasks(token),
     getDashboardStats(token),
-    getDirectoryUsers(token)
+    getDirectoryUsers(token).catch((err) => {
+        setDirectoryError(
+            err.message ||
+            "Active Directory is unavailable"
+        );
+        return [];
+    })
 ]);
 
             setHealth(healthData);
@@ -251,6 +260,9 @@ setDashboard(
             setDirectoryUsers(
                 directoryData
             );
+            if (directoryData.length > 0) {
+                setDirectoryError("");
+            }
 
 setLastUpdated(new Date());
 
@@ -481,26 +493,27 @@ if (
             );
         }
 
-        async function handleDeleteTask(taskId) {
-            setError("");
-            try {
-                await deleteTask(token, taskId);
-                setMessage("Pending task cancelled.");
-                await loadData();
-            } catch (err) {
-                setError(err.message || "Unable to cancel task");
-            }
-        }
+    }
 
-        async function handleReviewTask(taskId, status) {
-            setError("");
-            try {
-                await reviewTask(token, taskId, status);
-                setMessage(`Task marked ${status.toLowerCase()}.`);
-                await loadData();
-            } catch (err) {
-                setError(err.message || "Unable to review task");
-            }
+    async function handleDeleteTask(taskId) {
+        setError("");
+        try {
+            await deleteTask(token, taskId);
+            setMessage("Pending task cancelled.");
+            await loadData();
+        } catch (err) {
+            setError(err.message || "Unable to cancel task");
+        }
+    }
+
+    async function handleReviewTask(taskId, status) {
+        setError("");
+        try {
+            await reviewTask(token, taskId, status);
+            setMessage(`Task marked ${status.toLowerCase()}.`);
+            await loadData();
+        } catch (err) {
+            setError(err.message || "Unable to review task");
         }
     }
 
@@ -902,6 +915,7 @@ if (
                         <UsersPage
                             stats={userStats}
                             directoryUsers={directoryUsers}
+                            directoryError={directoryError}
                         />
                     )}
                 </section>
@@ -1915,7 +1929,8 @@ function ReportsPage({
 
 function UsersPage({
     stats,
-    directoryUsers
+    directoryUsers,
+    directoryError
 }) {
     const enabledUsers = directoryUsers.filter(
         (user) => user.enabled
@@ -1963,6 +1978,11 @@ function UsersPage({
                 subtitle="Read-only directory view from the configured LDAP service account"
                 count={directoryUsers.length}
             >
+                {directoryError && (
+                    <div className="alert error">
+                        Active Directory could not be reached: {directoryError}
+                    </div>
+                )}
                 {directoryUsers.length ? (
                     <div className="data-list">
                         {directoryUsers.map((user) => (
