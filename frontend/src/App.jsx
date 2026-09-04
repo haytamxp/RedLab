@@ -323,23 +323,31 @@ if (
             return;
         }
 
+        const reportBlob = new Blob(
+            [report.html],
+            { type: "text/html" }
+        );
+        const reportUrl = URL.createObjectURL(
+            reportBlob
+        );
         const reportWindow = window.open(
-            "",
+            reportUrl,
             "_blank",
             "popup,width=1200,height=900"
         );
 
         if (!reportWindow) {
+            URL.revokeObjectURL(reportUrl);
             setError(
                 "Your browser blocked the report window. Allow pop-ups to open it."
             );
             return;
         }
 
-        reportWindow.document.write(
-            report.html
+        window.setTimeout(
+            () => URL.revokeObjectURL(reportUrl),
+            60000
         );
-        reportWindow.document.close();
     }
 
     async function handleLogin(
@@ -943,9 +951,16 @@ if (
                                     Assessment
                                     Report
                                 </h2>
+                                <p className="report-modal-subtitle">
+                                    Review the executive summary and prioritized findings before sharing.
+                                </p>
                             </div>
 
                             <div className="report-modal-actions">
+                                <span className="report-preview-status">
+                                    <span className="status-dot" />
+                                    Live preview
+                                </span>
                                 <button
                                     className="secondary-button"
                                     onClick={
@@ -968,13 +983,17 @@ if (
                             </div>
                         </div>
 
-                        <iframe
-                            className="report-frame"
-                            title="RedLab assessment report"
-                            srcDoc={
-                                report.html
-                            }
-                        />
+                        <div className="report-preview-canvas">
+                            <div className="report-preview-toolbar">
+                                <span>REDLAB / REPORT VIEWER</span>
+                                <span>Generated assessment document</span>
+                            </div>
+                            <iframe
+                                className="report-frame"
+                                title="RedLab assessment report"
+                                srcDoc={report.html}
+                            />
+                        </div>
                     </div>
                 </div>
             )}

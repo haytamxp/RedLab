@@ -796,15 +796,15 @@ nav {
 }
 
 .report-modal {
-    width: min(1200px, 95vw);
-    height: min(820px, 92vh);
+    width: min(1280px, 96vw);
+    height: min(880px, 94vh);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     border: 1px solid var(--border);
-    border-radius: 17px;
+    border-radius: 20px;
     background: var(--panel);
-    box-shadow: 0 30px 100px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 35px 120px rgba(0, 0, 0, 0.55);
 }
 
 .report-modal-header {
@@ -812,19 +812,73 @@ nav {
     justify-content: space-between;
     align-items: center;
     gap: 20px;
-    padding: 17px 20px;
+    padding: 20px 24px;
     border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, var(--panel), var(--panel-2));
 }
 
 .report-modal-header h2 {
-    margin: 7px 0 0;
+    margin: 6px 0 0;
+    letter-spacing: -0.03em;
+}
+
+.report-modal-subtitle {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.report-preview-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 4px rgba(71, 211, 139, 0.12);
+}
+
+.report-preview-canvas {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    padding: 18px;
+    background: #111827;
+}
+
+.report-preview-toolbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 0 4px 12px;
+    color: #94a3b8;
+    font-family: Consolas, "SFMono-Regular", monospace;
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+}
+
+.report-preview-toolbar span:last-child {
+    color: #64748b;
+    letter-spacing: 0;
 }
 
 .report-frame {
     width: 100%;
     flex: 1;
+    min-height: 0;
     border: 0;
+    border-radius: 10px;
     background: white;
+    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.3);
 }
 
 @keyframes fade-in {
@@ -911,6 +965,15 @@ nav {
     .report-card {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    .report-modal-actions {
+        align-items: flex-end;
+        flex-direction: column;
+    }
+
+    .report-preview-toolbar span:last-child {
+        display: none;
     }
 
     .module-meta {

@@ -30,10 +30,13 @@ var reportTemplate = template.Must(
 		}
 
 		* { box-sizing: border-box; }
+		@page { size: A4; margin: 16mm; }
 		body {
 			margin: 0;
 			color: var(--ink);
-			background: #edf1f7;
+			background:
+				radial-gradient(circle at 10% 0%, rgba(63, 94, 232, .12), transparent 28rem),
+				#edf1f7;
 			font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 			line-height: 1.55;
 		}
@@ -46,10 +49,23 @@ var reportTemplate = template.Must(
 		.cover {
 			position: relative;
 			overflow: hidden;
-			padding: 58px 64px 52px;
+			min-height: 440px;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			padding: 64px;
 			color: white;
 			background: linear-gradient(130deg, #0c1732, #1f3270 70%, #3f5ee8);
 		}
+		.cover::before {
+			position: absolute;
+			inset: 0;
+			background-image: linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+			background-size: 34px 34px;
+			mask-image: linear-gradient(135deg, black, transparent 72%);
+			content: "";
+		}
+		.cover > * { position: relative; z-index: 1; }
 		.cover::after {
 			position: absolute;
 			right: -100px;
@@ -62,14 +78,14 @@ var reportTemplate = template.Must(
 			content: "";
 		}
 		.brand { color: #cbd5ff; font-size: 13px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; }
-		.cover h1 { max-width: 780px; margin: 22px 0 12px; font-size: clamp(30px, 5vw, 54px); line-height: 1.08; letter-spacing: -.04em; }
+		.cover h1 { max-width: 780px; margin: 22px 0 12px; font-size: clamp(30px, 5vw, 54px); line-height: 1.08; letter-spacing: -.04em; text-wrap: balance; }
 		.cover p { max-width: 720px; margin: 0; color: #d9e1ff; font-size: 16px; }
 		.cover-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 34px; }
 		.cover-pill { padding: 8px 12px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; color: #eef1ff; background: rgba(255,255,255,.09); font-size: 12px; font-weight: 750; }
-		.content { padding: 44px 64px 56px; }
+		.content { padding: 52px 64px 64px; background: linear-gradient(180deg, #fff 0%, #fbfcff 100%); }
 		.section { margin-top: 38px; }
 		.section:first-child { margin-top: 0; }
-		.section-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 16px; border-bottom: 2px solid var(--ink); }
+		.section-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 16px; padding-bottom: 2px; border-bottom: 2px solid var(--ink); }
 		.section-heading h2 { margin: 0 0 9px; font-size: 20px; letter-spacing: -.02em; }
 		.section-heading span { margin-bottom: 9px; color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; }
 		.overview { display: grid; grid-template-columns: 1.5fr 1fr; gap: 28px; }
@@ -79,10 +95,13 @@ var reportTemplate = template.Must(
 		.detail span { display: block; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 		.detail strong { display: block; margin-top: 4px; font-size: 12px; word-break: break-word; }
 		.summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 28px; }
-		.summary-card { padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); }
+		.summary-card { position: relative; overflow: hidden; padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); }
+		.summary-card::after { position: absolute; right: -18px; bottom: -28px; width: 80px; height: 80px; border: 12px solid rgba(63,94,232,.07); border-radius: 50%; content: ""; }
+		.summary-card:nth-child(2) { background: #fff3f5; border-color: #ffd7de; }
+		.summary-card:nth-child(3) { background: #fff7ed; border-color: #ffe1bf; }
 		.summary-card strong { display: block; font-size: 28px; line-height: 1; }
 		.summary-card span { display: block; margin-top: 7px; color: var(--muted); font-size: 12px; font-weight: 700; }
-		.finding { margin: 18px 0; padding: 24px; border: 1px solid var(--line); border-left: 5px solid var(--blue); border-radius: 12px; background: white; page-break-inside: avoid; }
+		.finding { margin: 18px 0; padding: 25px 26px; border: 1px solid var(--line); border-left: 5px solid var(--blue); border-radius: 12px; background: white; box-shadow: 0 8px 22px rgba(16,26,51,.045); page-break-inside: avoid; }
 		.finding.critical { border-left-color: var(--red); }
 		.finding.high { border-left-color: #e85b2a; }
 		.finding.medium { border-left-color: var(--orange); }
@@ -98,18 +117,21 @@ var reportTemplate = template.Must(
 		.finding-meta strong { color: var(--ink); }
 		.recommendation { margin-top: 16px; padding: 13px 15px; border-radius: 8px; background: #f2f7ff; color: #3c557e; font-size: 13px; }
 		.recommendation strong { color: var(--blue); }
+		.finding strong { font-weight: 800; }
 		.empty { padding: 25px; border: 1px dashed #bdc7d8; border-radius: 12px; color: var(--muted); text-align: center; }
-		.footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+		.footer { display: flex; justify-content: space-between; gap: 20px; margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 		@media (max-width: 720px) {
 			.page { width: 100%; margin: 0; }
 			.cover, .content { padding: 34px 24px; }
 			.overview, .summary { grid-template-columns: 1fr; }
+			.footer { flex-direction: column; }
 		}
 		@media print {
 			body { background: white; }
 			.page { width: 100%; margin: 0; box-shadow: none; }
-			.cover { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+			.cover { min-height: 255mm; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 			.finding, .summary-card { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+			.section { break-inside: avoid; }
 		}
 	</style>
 </head>
